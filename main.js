@@ -42,6 +42,7 @@
       uniform float u_time;
       uniform vec2  u_mouse;
       uniform vec4  u_rip[6];
+      uniform float u_hue;
 
       vec2 hash(vec2 p){ p=vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3)));
         return -1.+2.*fract(sin(p)*43758.5453123); }
@@ -87,6 +88,13 @@
         col += vec3(.30,.95,.78)*abs(rip)*.9;
 
         col*=1.-.45*length(uv*.72);
+        // scroll-driven hue rotation (section mood shifts)
+        float ca=cos(u_hue), sa=sin(u_hue);
+        mat3 hr = mat3(
+          .299+.701*ca+.168*sa, .587-.587*ca+.330*sa, .114-.114*ca-.497*sa,
+          .299-.299*ca-.328*sa, .587+.413*ca+.035*sa, .114-.114*ca+.292*sa,
+          .299-.300*ca+1.25*sa, .587-.588*ca-1.05*sa, .114+.886*ca-.203*sa);
+        col = hr * col;
         gl_FragColor=vec4(col,.9);
       }`;
 
@@ -123,9 +131,11 @@
     gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
 
     const uRes  = gl.getUniformLocation(prog, "u_res");
-    const uTime = gl.getUniformLocation(prog, "u_time");
-    const uMouse= gl.getUniformLocation(prog, "u_mouse");
-    const uRip  = gl.getUniformLocation(prog, "u_rip");
+    const uTime = gl.getUniformLocation(prog, "u_time");    const uMouse= gl.getUniformLocation(prog, "u_mouse");
+    const uRip = gl.getUniformLocation(prog, "u_rip");
+    const uHue = gl.getUniformLocation(prog, "u_hue");
+    let hue = 0, hueT = 0;
+    window.__veyraHue = v => { hueT = v; };
 
     const ripples = Array.from({ length: 6 }, () => ({ x: 0, y: 0, t: 99 }));
     let ri = 0;
@@ -141,27 +151,44 @@
     }, { passive: true });
 
     function resize() {
-      canvas.width = innerWidth * Math.min(devicePixelRatio, LOW_POWER ? 1.3 : 2);
-      canvas.height = innerHeight * Math.min(devicePixelRatio, LOW_POWER ? 1.3 : 2);
+      // adaptive quality: start 1.5x DPR, degrade if the GPU struggles
+      const cap = perf.degrade ? 1 : 1.5;
+      canvas.width = innerWidth * Math.min(devicePixelRatio, cap);
+      canvas.height = innerHeight * Math.min(devicePixelRatio, cap);
       gl.viewport(0, 0, canvas.width, canvas.height);
     }
     resize(); addEventListener("resize", resize);
 
+    // adaptive perf monitor — if frames run slow, drop canvas resolution once
+    const perf = { degrade: false, acc: 0, n: 0 };
+    setInterval(() => {
+      if (perf.n > 30 && perf.acc / perf.n > 26 && !perf.degrade) {
+        perf.degrade = true; resize();
+      }
+      perf.acc = 0; perf.n = 0;
+    }, 2000);
+
     const start = performance.now();
     const ripData = new Float32Array(24);
     (function frame(now) {
-      const t = (now - start) / 1000;
-      mx += (tx - mx) * .04; my += (ty - my) * .04;
-      for (let i = 0; i < 6; i++) {
-        const r = ripples[i];
-        r.t += 1 / 60;
-        ripData[i*4] = r.x; ripData[i*4+1] = r.y; ripData[i*4+2] = r.t; ripData[i*4+3] = 1;
+      if (!document.hidden) {
+        const t0 = performance.now();
+        const t = (now - start) / 1000;
+        mx += (tx - mx) * .04; my += (ty - my) * .04;
+        for (let i = 0; i < 6; i++) {
+          const r = ripples[i];
+          r.t += 1 / 60;
+          ripData[i*4] = r.x; ripData[i*4+1] = r.y; ripData[i*4+2] = r.t; ripData[i*4+3] = 1;
+        }
+        gl.uniform2f(uRes, canvas.width, canvas.height);
+        gl.uniform1f(uTime, t);
+        gl.uniform2f(uMouse, mx, my);
+        gl.uniform4fv(uRip, ripData);
+        hue += (hueT - hue) * .03;
+        gl.uniform1f(uHue, hue);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+        perf.acc += performance.now() - t0; perf.n++;
       }
-      gl.uniform2f(uRes, canvas.width, canvas.height);
-      gl.uniform1f(uTime, t);
-      gl.uniform2f(uMouse, mx, my);
-      gl.uniform4fv(uRip, ripData);
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
       requestAnimationFrame(frame);
     })(start);
   }
@@ -238,18 +265,79 @@
     $(".nav-inner")?.appendChild(chip);
   }
 
-  /* ================= page transitions ================= */
+  /* ================= page transitions — curtain wipe ================= */
+  const curtain = document.createElement("div");
+  curtain.className = "curtain";
+  curtain.innerHTML = '<span></span><span></span><span></span><span></span><span></span>';
+  document.body.appendChild(curtain);
   $$('a[href$=".html"]').forEach(a => {
     a.addEventListener("click", e => {
       const href = a.getAttribute("href");
       if (!href || href.startsWith("#") || a.target === "_blank") return;
       e.preventDefault();
-      document.body.classList.add("page-out");
-      setTimeout(() => location.href = href, 240);
+      curtain.classList.add("run");
+      setTimeout(() => location.href = href, 520);
     });
   });
-  addEventListener("pageshow", () => document.body.classList.remove("page-out"));
+  addEventListener("pageshow", () => curtain.classList.remove("run"));
   document.body.classList.add("page-in");
+
+  /* ================= full-screen overlay menu ================= */
+  const menu = document.createElement("div");
+  menu.className = "ov-menu";
+  menu.innerHTML = `
+    <button class="ov-x" aria-label="close menu">✕</button>
+    <nav class="ov-links">
+      <a href="index.html" data-i="0"><em>01</em>Home</a>
+      <a href="services.html" data-i="1"><em>02</em>Services</a>
+      <a href="playground.html" data-i="2"><em>03</em>Playground</a>
+      <a href="docs.html" data-i="3"><em>04</em>Docs</a>
+      <a href="pricing.html" data-i="4"><em>05</em>Pricing</a>
+      <a href="about.html" data-i="5"><em>06</em>About</a>
+      <a href="dashboard.html" data-i="6"><em>07</em>Dashboard</a>
+    </nav>
+    <div class="ov-foot">
+      <span>VEYRA X OSINT</span>
+      <span class="dot"></span> all systems operational
+    </div>`;
+  document.body.appendChild(menu);
+  const burgerBtn = $("#burger");
+  if (burgerBtn) {
+    burgerBtn.addEventListener("click", () => {
+      menu.classList.add("open");
+      document.body.style.overflow = "hidden";
+    });
+  }
+  menu.querySelector(".ov-x").addEventListener("click", () => {
+    menu.classList.remove("open");
+    document.body.style.overflow = "";
+  });
+  menu.querySelectorAll(".ov-links a").forEach(a => {
+    a.addEventListener("click", e => {
+      const href = a.getAttribute("href");
+      e.preventDefault();
+      menu.classList.remove("open");
+      document.body.style.overflow = "";
+      curtain.classList.add("run");
+      setTimeout(() => location.href = href, 520);
+    });
+  });
+  addEventListener("keydown", e => {
+    if (e.key === "Escape") {
+      menu.classList.remove("open");
+      document.body.style.overflow = "";
+    }
+  });
+  /* ================= AT-style hover-zoom work grid ================= */
+  const grid = $(".work-grid");
+  if (grid && !isTouch && !reduced) {
+    $$(".work-card", grid).forEach(card => {
+      card.addEventListener("pointerenter", () => grid.classList.add("zooming"));
+      card.addEventListener("pointerleave", () => grid.classList.remove("zooming"));
+    });
+  }
+
+  /* ================= mobile bottom sheet ================= */
 
   /* ================= hero char stagger (desktop only) ================= */
   if (!reduced && !isTouch) {
@@ -334,7 +422,7 @@
     rEls = reduced ? [] : $$("[data-prot]").map(el => ({ el, sp: parseFloat(el.dataset.prot) || .002 }));
   }
 
-  let sy = scrollY, lean = 0;
+  let sy = scrollY, lean = 0, lastY = -1;
   function frame() {
     const vh = innerHeight;
     const y = scrollY;
@@ -343,10 +431,18 @@
     lean = lerp(lean, clamp(vel * .0011, -.55, .55), .12);
     document.documentElement.style.setProperty("--lean", lean.toFixed(3) + "deg");
 
-    for (const p of pEls) {
-      const center = p.base - sy;
-      const target = -(center - vh / 2) * p.sp * .55;
-      p.el.style.transform = `translate3d(0, ${target.toFixed(2)}px, 0)`;
+    if (Math.abs(y - lastY) > .4) {   // dirty-check: skip DOM writes when idle
+      lastY = y;
+      for (const p of pEls) {
+        const center = p.base - sy;
+        const target = -(center - vh / 2) * p.sp * .55;
+        p.el.style.transform = `translate3d(0, ${target.toFixed(2)}px, 0)`;
+      }
+      for (const m of motes) {
+        const loop = vh + 240;
+        const yy = vh - ((sy * m.speed + m.phase) % loop) - 120;
+        m.el.style.transform = `translate3d(${m.x.toFixed(0)}px, ${yy.toFixed(1)}px, 0)`;
+      }
     }
     for (const f of fEls) {
       if (f.el.classList.contains("reveal") && !f.el.classList.contains("in")) continue;
@@ -355,14 +451,11 @@
     for (const r of rEls) {
       r.el.style.rotate = (sy * r.sp).toFixed(2) + "deg";
     }
-    for (const m of motes) {
-      const loop = vh + 240;
-      const yy = vh - ((sy * m.speed + m.phase) % loop) - 120;
-      m.el.style.transform = `translate3d(${m.x.toFixed(0)}px, ${yy.toFixed(1)}px, 0)`;
-    }
 
     const max = document.documentElement.scrollHeight - vh;
-    progress.style.width = (max > 0 ? clamp((y / max) * 100, 0, 100) : 0) + "%";
+    const prog = max > 0 ? clamp((y / max) * 100, 0, 100) : 0;
+    progress.style.width = prog + "%";
+    if (window.__veyraHue) window.__veyraHue(prog * 0.0125); // section mood shift
     requestAnimationFrame(frame);
   }
   if (!reduced && !isTouch) {
