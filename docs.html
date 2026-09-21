@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Documentation — VEYRA X OSINT</title>
+<meta name="description" content="Auth, endpoints, errors and code samples." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&f[]=general-sans@400,500,600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Martian+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<canvas id="liquid"></canvas>
+<div class="glow glow-1" data-parallax="0.22" aria-hidden="true"></div>
+<div class="glow glow-2" data-parallax="-0.16" aria-hidden="true"></div>
+<div class="grid-floor" data-parallax="0.08" aria-hidden="true"></div>
+<div class="noise" aria-hidden="true"></div>
+
+<nav class="nav" id="nav">
+  <div class="nav-inner">
+    <a class="logo" href="index.html">
+      <span class="logo-word">VEYRA</span>
+      <span class="logo-x" aria-label="X"><svg viewBox="0 0 48 48" class="x-svg">
+        <line class="x-l1" x1="10" y1="10" x2="38" y2="38"/>
+        <line class="x-l2" x1="38" y1="10" x2="10" y2="38"/>
+        <circle class="x-orbit" cx="24" cy="24" r="20"/>
+      </svg></span>
+      <span class="logo-word thin">OSINT</span>
+    </a>
+    <div class="nav-links">
+      <a href="services.html">Services</a>
+      <a href="playground.html">Playground</a>
+      <a href="docs.html">Docs</a>
+      <a href="pricing.html">Pricing</a>
+      <a href="about.html">About</a>
+    </div>
+    <div class="nav-cta">
+      <a class="btn-ghost magnetic" href="login.html">Sign in</a>
+      <a class="btn-primary magnetic" href="signup.html">Get API key</a>
+    </div>
+    <button class="burger" id="burger" aria-label="menu">☰</button>
+  </div>
+</nav>
+
+<main>
+
+<section class="page-hero">
+  <div class="wrap">
+    <div class="crumbs"><a href="index.html">home</a> / docs</div>
+    <h1 class="hero-title reveal" style="font-size:clamp(44px,7vw,84px);margin:0 0 16px">Docu<span class="grad">mentation.</span></h1>
+    <p class="hero-sub reveal" style="margin:0">Everything you need to integrate — auth, endpoints, errors, limits.</p>
+  </div>
+</section>
+
+<section class="section" style="padding-top:20px">
+  <div class="wrap docs-layout">
+    <nav class="docs-nav reveal">
+      <a href="#quickstart" class="on">Quickstart</a>
+      <a href="#auth">Authentication</a>
+      <a href="#endpoints">Endpoints</a>
+      <a href="#masking">Masking &amp; tiers</a>
+      <a href="#errors">Errors</a>
+      <a href="#limits">Rate limits</a>
+      <a href="#sdks">Code samples</a>
+    </nav>
+    <div>
+      <div class="doc-block reveal" id="quickstart">
+        <h3>Quickstart</h3>
+        <p style="color:var(--txt-dim)">Get your key from the dashboard, then make your first call:</p>
+        <div class="code-win">curl https://api.veyrax.in/api/v1/rc/MH02BE0001 \
+  -H "X-API-Key: vx_live_yourkeyhere"</div>
+      </div>
+      <div class="doc-block reveal" id="auth">
+        <h3>Authentication</h3>
+        <p style="color:var(--txt-dim)">All requests need the <code style="color:var(--acc)">X-API-Key</code> header. Keys are scoped, revocable and shown once at creation. Keep them server-side — never ship keys in frontend code.</p>
+      </div>
+      <div class="doc-block reveal" id="endpoints">
+        <h3>Endpoints</h3>
+        <table class="param-table">
+          <tr><th>Route</th><th>Service</th><th>Description</th></tr>
+          <tr><td><code>/api/v1/rc/:regno</code></td><td>RC</td><td>Full registration certificate</td></tr>
+          <tr><td><code>/api/v1/dl/:dlno</code></td><td>DL</td><td>Licence details</td></tr>
+          <tr><td><code>/api/v1/dl-img/:appl/:dob</code></td><td>DL</td><td>Licence holder photo (base64)</td></tr>
+          <tr><td><code>/api/v1/dl-form3/:appl/:dob</code></td><td>DL</td><td>Form 3 PDF (base64)</td></tr>
+          <tr><td><code>/api/v1/challan/:vehicleno</code></td><td>eChallan</td><td>Pending challans</td></tr>
+          <tr><td><code>/api/v1/aadhaar/:regno</code></td><td>Aadhaar</td><td>Seeding status</td></tr>
+          <tr><td><code>/api/v1/hpt/:regno</code></td><td>HPT</td><td>Loan / financier</td></tr>
+          <tr><td><code>/api/v1/permit/:regno</code></td><td>Permit</td><td>Permit + tax</td></tr>
+          <tr><td><code>/api/v1/tax/:regno</code></td><td>Tax</td><td>Tax breakup</td></tr>
+          <tr><td><code>/api/v1/states</code></td><td>Master</td><td>State list</td></tr>
+          <tr><td><code>/api/v1/rtos/:code</code></td><td>Master</td><td>RTOs for a state</td></tr>
+        </table>
+      </div>
+      <div class="doc-block reveal" id="masking">
+        <h3>Masking &amp; tiers</h3>
+        <p style="color:var(--txt-dim)">Trial keys receive masked values (<code style="color:var(--acc)">R****h</code>). Pro keys receive full responses. Masking exists so captured free responses are worthless to scrapers.</p>
+      </div>
+      <div class="doc-block reveal" id="errors">
+        <h3>Errors</h3>
+        <table class="param-table">
+          <tr><th>Code</th><th>Meaning</th></tr>
+          <tr><td><code>400</code></td><td>Bad query — check parameter format</td></tr>
+          <tr><td><code>401</code></td><td>Missing or invalid API key</td></tr>
+          <tr><td><code>403</code></td><td>Key lacks scope for this service</td></tr>
+          <tr><td><code>429</code></td><td>Rate limit exceeded</td></tr>
+          <tr><td><code>502</code></td><td>Upstream unavailable — retry with backoff</td></tr>
+        </table>
+      </div>
+      <div class="doc-block reveal" id="limits">
+        <h3>Rate limits</h3>
+        <p style="color:var(--txt-dim)">Trial: 10 req/day · Pro: 5,000 req/month burst 10/s · Enterprise: custom. Every response carries a <code style="color:var(--acc)">requestId</code> for support.</p>
+      </div>
+      <div class="doc-block reveal" id="sdks">
+        <h3>Code samples</h3>
+        <div class="code-win"># Python
+import requests
+r = requests.get(
+    "https://api.veyrax.in/api/v1/rc/MH02BE0001",
+    headers={"X-API-Key": "vx_live_..."})
+print(r.json())</div>
+        <div class="code-win">// JavaScript
+const r = await fetch(
+  "https://api.veyrax.in/api/v1/rc/MH02BE0001",
+  { headers: { "X-API-Key": "vx_live_..." } });
+console.log(await r.json());</div>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-grid">
+    <div>
+      <a class="logo" href="index.html">
+        <span class="logo-word">VEYRA</span>
+        <span class="logo-x"><svg viewBox="0 0 48 48" class="x-svg">
+          <line class="x-l1" x1="10" y1="10" x2="38" y2="38"/>
+          <line class="x-l2" x1="38" y1="10" x2="10" y2="38"/>
+          <circle class="x-orbit" cx="24" cy="24" r="20"/>
+        </svg></span>
+      </a>
+      <p class="foot-tag">India's lawful data API.<br />Built by <b>Team Veyra</b>.</p>
+    </div>
+    <div class="foot-col">
+      <h5>Services</h5>
+      <a href="services/rc.html">Vehicle RC</a><a href="services/dl.html">Driving Licence</a>
+      <a href="services/challan.html">eChallan</a><a href="services/aadhaar.html">Aadhaar Linkage</a>
+      <a href="services/permit.html">Permit &amp; Tax</a><a href="services/hpt.html">Hypothecation</a>
+    </div>
+    <div class="foot-col">
+      <h5>Platform</h5>
+      <a href="playground.html">Playground</a><a href="docs.html">Documentation</a>
+      <a href="pricing.html">Pricing</a><a href="dashboard.html">Dashboard</a><a href="status.html">Status</a>
+    </div>
+    <div class="foot-col">
+      <h5>Company &amp; Legal</h5>
+      <a href="about.html">About Team Veyra</a><a href="contact.html">Contact</a>
+      <a href="legal/terms.html">Terms</a><a href="legal/privacy.html">Privacy</a><a href="legal/aup.html">Acceptable use</a>
+    </div>
+  </div>
+  <div class="wrap foot-base">
+    <span>© <span class="yr">2026</span> Team Veyra · VEYRA X OSINT</span>
+    <span class="foot-status"><span class="dot"></span> All systems operational</span>
+  </div>
+</footer>
+<nav class="tabbar" aria-label="mobile">
+  <a href="index.html" ><svg viewBox="0 0 24 24"><path d="M3 11 L12 3 L21 11 V21 H15 V15 H9 V21 H3 Z"/></svg>Home</a>
+  <a href="services.html" ><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 20 H17 M12 18 V20"/></svg>Services</a>
+  <a href="playground.html" ><svg viewBox="0 0 24 24"><path d="M8 6 L19 12 L8 18 Z"/></svg>Try</a>
+  <a href="docs.html" class="active"><svg viewBox="0 0 24 24"><path d="M6 3 H15 L20 8 V21 H6 Z M15 3 V8 H20 M9 13 H17 M9 17 H14"/></svg>Docs</a>
+  <a href="dashboard.html" ><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21 Q4 15 12 15 Q20 15 20 21"/></svg>Account</a>
+</nav>
+<button class="try-fab" aria-label="open playground">Try the API</button>
+
+<script src="main.js"></script>
+</body>
+</html>

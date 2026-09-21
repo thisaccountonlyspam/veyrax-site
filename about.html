@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>About — VEYRA X OSINT</title>
+<meta name="description" content="About Team Veyra." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&f[]=general-sans@400,500,600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Martian+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<canvas id="liquid"></canvas>
+<div class="glow glow-1" data-parallax="0.22" aria-hidden="true"></div>
+<div class="glow glow-2" data-parallax="-0.16" aria-hidden="true"></div>
+<div class="grid-floor" data-parallax="0.08" aria-hidden="true"></div>
+<div class="noise" aria-hidden="true"></div>
+
+<nav class="nav" id="nav">
+  <div class="nav-inner">
+    <a class="logo" href="index.html">
+      <span class="logo-word">VEYRA</span>
+      <span class="logo-x" aria-label="X"><svg viewBox="0 0 48 48" class="x-svg">
+        <line class="x-l1" x1="10" y1="10" x2="38" y2="38"/>
+        <line class="x-l2" x1="38" y1="10" x2="10" y2="38"/>
+        <circle class="x-orbit" cx="24" cy="24" r="20"/>
+      </svg></span>
+      <span class="logo-word thin">OSINT</span>
+    </a>
+    <div class="nav-links">
+      <a href="services.html">Services</a>
+      <a href="playground.html">Playground</a>
+      <a href="docs.html">Docs</a>
+      <a href="pricing.html">Pricing</a>
+      <a href="about.html">About</a>
+    </div>
+    <div class="nav-cta">
+      <a class="btn-ghost magnetic" href="login.html">Sign in</a>
+      <a class="btn-primary magnetic" href="signup.html">Get API key</a>
+    </div>
+    <button class="burger" id="burger" aria-label="menu">☰</button>
+  </div>
+</nav>
+
+<main>
+
+<section class="page-hero">
+  <div class="wrap">
+    <div class="crumbs"><a href="index.html">home</a> / about</div>
+    <h1 class="hero-title reveal" style="font-size:clamp(44px,7vw,84px);margin:0 0 16px">Team <span class="grad">Veyra.</span></h1>
+    <p class="hero-sub reveal" style="margin:0">We build lawful data infrastructure for India — fast, auditable, and honest about what it will never be used for.</p>
+  </div>
+</section>
+
+<section class="section" style="padding-top:20px">
+  <div class="wrap" style="max-width:900px">
+    <div class="comp-grid">
+      <div class="comp reveal"><h4>Why VeyraX exists</h4><p>Vehicle and licence data in India lives behind dated portals. We put the same public-records intelligence behind a clean, fast, honest API for professionals.</p></div>
+      <div class="comp reveal"><h4>What we will never do</h4><p>Sell to stalkers. Host scraped dumps. Hide our audit trail. If a use-case feels wrong, we block it first and ask later.</p></div>
+      <div class="comp reveal"><h4>How it works inside</h4><p>Requests hit Cloudflare Workers, are rate-limited per key, proxied through Indian infrastructure and cached transiently. No PII is stored permanently.</p></div>
+      <div class="comp reveal"><h4>Where we're going</h4><p>More services, sub-100ms medians, an official partner programme for verified businesses, and a public transparency report every quarter.</p></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-grid">
+    <div>
+      <a class="logo" href="index.html">
+        <span class="logo-word">VEYRA</span>
+        <span class="logo-x"><svg viewBox="0 0 48 48" class="x-svg">
+          <line class="x-l1" x1="10" y1="10" x2="38" y2="38"/>
+          <line class="x-l2" x1="38" y1="10" x2="10" y2="38"/>
+          <circle class="x-orbit" cx="24" cy="24" r="20"/>
+        </svg></span>
+      </a>
+      <p class="foot-tag">India's lawful data API.<br />Built by <b>Team Veyra</b>.</p>
+    </div>
+    <div class="foot-col">
+      <h5>Services</h5>
+      <a href="services/rc.html">Vehicle RC</a><a href="services/dl.html">Driving Licence</a>
+      <a href="services/challan.html">eChallan</a><a href="services/aadhaar.html">Aadhaar Linkage</a>
+      <a href="services/permit.html">Permit &amp; Tax</a><a href="services/hpt.html">Hypothecation</a>
+    </div>
+    <div class="foot-col">
+      <h5>Platform</h5>
+      <a href="playground.html">Playground</a><a href="docs.html">Documentation</a>
+      <a href="pricing.html">Pricing</a><a href="dashboard.html">Dashboard</a><a href="status.html">Status</a>
+    </div>
+    <div class="foot-col">
+      <h5>Company &amp; Legal</h5>
+      <a href="about.html">About Team Veyra</a><a href="contact.html">Contact</a>
+      <a href="legal/terms.html">Terms</a><a href="legal/privacy.html">Privacy</a><a href="legal/aup.html">Acceptable use</a>
+    </div>
+  </div>
+  <div class="wrap foot-base">
+    <span>© <span class="yr">2026</span> Team Veyra · VEYRA X OSINT</span>
+    <span class="foot-status"><span class="dot"></span> All systems operational</span>
+  </div>
+</footer>
+<nav class="tabbar" aria-label="mobile">
+  <a href="index.html" ><svg viewBox="0 0 24 24"><path d="M3 11 L12 3 L21 11 V21 H15 V15 H9 V21 H3 Z"/></svg>Home</a>
+  <a href="services.html" ><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 20 H17 M12 18 V20"/></svg>Services</a>
+  <a href="playground.html" ><svg viewBox="0 0 24 24"><path d="M8 6 L19 12 L8 18 Z"/></svg>Try</a>
+  <a href="docs.html" ><svg viewBox="0 0 24 24"><path d="M6 3 H15 L20 8 V21 H6 Z M15 3 V8 H20 M9 13 H17 M9 17 H14"/></svg>Docs</a>
+  <a href="dashboard.html" ><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21 Q4 15 12 15 Q20 15 20 21"/></svg>Account</a>
+</nav>
+<button class="try-fab" aria-label="open playground">Try the API</button>
+
+<script src="main.js"></script>
+</body>
+</html>
