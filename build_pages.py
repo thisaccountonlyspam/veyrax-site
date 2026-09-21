@@ -93,7 +93,7 @@ def page(fname, title, desc, body, active="", sub=False):
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&f[]=general-sans@400,500,600&display=swap" rel="stylesheet" />
 <link href="https://fonts.googleapis.com/css2?family=Martian+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="{b}style.css" />
+<link rel="stylesheet" href="{b}style.css?v=20260921a" />
 </head>
 <body>
 
@@ -112,7 +112,7 @@ def page(fname, title, desc, body, active="", sub=False):
 {FOOTER.format(b=b)}
 {TABBAR.format(b=b, ah=ah, av=av, ap=ap, ad=ad, aa=aa)}
 
-<script src="{b}main.js"></script>
+<script src="{b}main.js?v=20260921a"></script>
 </body>
 </html>"""
     path = os.path.join(OUT, fname)

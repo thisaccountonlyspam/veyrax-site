@@ -68,6 +68,7 @@
 
   /* ---------- macOS dock (desktop) — injected on every page ---------- */
   if (!isTouch) {
+    try {
     const D = [
       ["Home", "index.html", "M3 10.5 12 3l9 7.5 M5 9.5V21h14V9.5 M9.5 21v-7h5v7"],
       ["Services", "services.html", "M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z"],
@@ -107,6 +108,7 @@
     dock.addEventListener("pointerleave", () => { e = { clientX: -9999 }; items.forEach(it => it.style.transform = ""); });
     const homeBtn = dock.querySelector(".dock-home");
     if (homeBtn) homeBtn.addEventListener("click", openMenu);
+    } catch (err) { console.warn("dock init skipped:", err); }
   }
 
   function openMenu() {
@@ -344,6 +346,7 @@
   const heroInner = $(".hero-inner");
   const plxEls = $$("[data-plx]");
   if (!isTouch && !reduced) {
+    try {
     // starfield — original code, three depth layers, twinkle, scroll+mouse drift
     const cv = document.createElement("canvas");
     cv.className = "bg-space";
@@ -445,6 +448,7 @@
       }, { passive: true });
       apply();
     }
+    } catch (err) { console.warn("hero fx skipped:", err); }
   } else {
     // touch/reduced: hero stays visible, parallax layers pinned
     plxEls.forEach(el => el.style.transform = "none");
@@ -478,6 +482,7 @@
   /* ---------- cylindrical pricing wall (desktop) ---------- */
   const stage = $(".cyl-stage"), cyl = $(".cyl");
   if (stage && cyl && !isTouch && !reduced) {
+    try {
     const cards = $$(".price", cyl);
     const N = cards.length;
     if (N) {
@@ -532,6 +537,7 @@
       });
       render(); raf = requestAnimationFrame(spin);
     }
+    } catch (err) { console.warn("cylinder skipped:", err); }
   }
 
   /* footer year */
