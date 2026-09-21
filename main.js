@@ -391,6 +391,21 @@
       blob(140, 150, 210, "rgba(94,242,195,.055)");
       blob(360, 340, 240, "rgba(122,120,255,.05)");
 
+      /* shooting stars — streak diagonally on a random timer */
+      let meteors = [];
+      let nextMeteor = 1200 + Math.random() * 2600;
+      const spawnMeteor = () => {
+        const fromLeft = Math.random() < .5;
+        const speed = 9 + Math.random() * 7;
+        const ang = (fromLeft ? .35 : Math.PI - .35) + (Math.random() - .5) * .16;
+        meteors.push({
+          x: Math.random() * W * .8 + W * .1,
+          y: -20 + Math.random() * H * .25,
+          vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed,
+          life: 1, mint: Math.random() < .25
+        });
+      };
+
       let frames = 0, acc = 0, capped = false;
       let sy = scrollY, lastT = performance.now();
       const loop = t => {
@@ -401,6 +416,23 @@
         // nebula drifts opposite the stars
         ctx.drawImage(neb, -smx * 60 - 120, -smy * 60 + sy * -.03 - 140);
         ctx.drawImage(neb, W - 480 + smx * 80, H - 480 - smy * 50 - sy * .02);
+        /* meteors: spawn, streak with gradient trail, fade */
+        nextMeteor -= 16.7 * dt;
+        if (nextMeteor <= 0) { spawnMeteor(); nextMeteor = 2200 + Math.random() * 4200; }
+        meteors = meteors.filter(m => m.life > 0);
+        for (const m of meteors) {
+          m.x += m.vx * dt; m.y += m.vy * dt; m.life -= .016 * dt;
+          const tx = m.x - m.vx * 9, ty = m.y - m.vy * 9;
+          const g = ctx.createLinearGradient(m.x, m.y, tx, ty);
+          const col = m.mint ? "94,242,195" : "255,255,255";
+          g.addColorStop(0, `rgba(${col},${(.9 * m.life).toFixed(3)})`);
+          g.addColorStop(1, `rgba(${col},0)`);
+          ctx.strokeStyle = g; ctx.lineWidth = 1.6; ctx.lineCap = "round";
+          ctx.globalAlpha = 1;
+          ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(tx, ty); ctx.stroke();
+          ctx.fillStyle = `rgba(${col},${(.95 * m.life).toFixed(3)})`;
+          ctx.beginPath(); ctx.arc(m.x, m.y, 1.6, 0, 6.2832); ctx.fill();
+        }
         for (const s of stars) {
           s.x -= s.z * .06 * dt;                         // slow leftward drift
           if (s.x < -4) { s.x = W + 4; s.y = Math.random() * H; }
@@ -488,10 +520,31 @@
           build();
           let rT; addEventListener("resize", () => { clearTimeout(rT); rT = setTimeout(build, 250); });
           let sy = scrollY, lastT = performance.now(), live = true;
+          let mets = [], mNext = 2500 + Math.random() * 3000;
           const loop = t => {
             const dt = Math.min((t - lastT) / 16.7, 3); lastT = t;
             sy += (scrollY - sy) * .08;
             ctx.clearRect(0, 0, W, H);
+            /* phone meteors — fewer, slower, battery-friendly */
+            mNext -= 16.7 * dt;
+            if (mNext <= 0) {
+              const fromLeft = Math.random() < .5;
+              const sp = 6 + Math.random() * 4;
+              const an = (fromLeft ? .35 : Math.PI - .35) + (Math.random() - .5) * .16;
+              mets.push({ x: Math.random() * W * .7 + W * .15, y: Math.random() * H * .3,
+                vx: Math.cos(an) * sp, vy: Math.sin(an) * sp, life: 1 });
+              mNext = 4000 + Math.random() * 6000;
+            }
+            mets = mets.filter(m => m.life > 0);
+            for (const m of mets) {
+              m.x += m.vx * dt; m.y += m.vy * dt; m.life -= .014 * dt;
+              const tx = m.x - m.vx * 7, ty = m.y - m.vy * 7;
+              const g = ctx.createLinearGradient(m.x, m.y, tx, ty);
+              g.addColorStop(0, `rgba(255,255,255,${(.85 * m.life).toFixed(3)})`);
+              g.addColorStop(1, "rgba(255,255,255,0)");
+              ctx.strokeStyle = g; ctx.lineWidth = 1.4; ctx.lineCap = "round";
+              ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(tx, ty); ctx.stroke();
+            }
             for (const s of stars) {
               s.x -= s.z * .045 * dt;                    // slow drift
               if (s.x < -3) { s.x = W + 3; s.y = Math.random() * H; }
