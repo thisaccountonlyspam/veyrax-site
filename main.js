@@ -1,33 +1,41 @@
 /* ============================================================
-   VEYRA X OSINT — main.js  ·  motion engine
-   Liquid WebGL + click ripples · parallax · sticky deck ·
-   magnetic buttons · cursor glow · page transitions · playground
+   VEYRA X OSINT — main.js · v2 motion engine
+   Liquid WebGL (+ripple) · scroll parallax · sticky deck stack ·
+   hero char stagger · magnetic · cursor glow · page transitions
    ============================================================ */
 (() => {
   "use strict";
 
+  document.documentElement.classList.add("js");
+
   const $  = (s, c) => (c || document).querySelector(s);
   const $$ = (s, c) => [...(c || document).querySelectorAll(s)];
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const isTouch = matchMedia("(hover: none)").matches;
+  const desktop = matchMedia("(min-width: 821px)").matches;
 
   /* ================= liquid WebGL background ================= */
   const canvas = $("#liquid");
-  let rippleQueue = [];
   if (canvas && !reduced) initLiquid(canvas);
 
   function initLiquid(canvas) {
-    const gl = canvas.getContext("webgl", { antialias: false, alpha: true });
-    if (!gl) return;
+    const gl = canvas.getContext("webgl", { antialias: false, alpha: true })
+            || canvas.getContext("experimental-webgl");
+    if (!gl) { document.body.classList.add("no-webgl"); return; }
+
+    // pick float precision the GPU actually supports
+    const highOK = (gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT) || { precision: 0 }).precision > 0;
+    const PREC = highOK ? "highp" : "mediump";
 
     const vs = `attribute vec2 p; void main(){ gl_Position = vec4(p,0.,1.); }`;
 
     const fs = `
-      precision highp float;
+      precision ${PREC} float;
       uniform vec2  u_res;
       uniform float u_time;
       uniform vec2  u_mouse;
-      uniform vec4  u_rip[6];   // xy = pos(px), z = age, w = strength
+      uniform vec4  u_rip[6];
 
       vec2 hash(vec2 p){ p=vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3)));
         return -1.+2.*fract(sin(p)*43758.5453123); }
@@ -42,18 +50,16 @@
         for(int i=0;i<5;i++){ v+=a*noise(p); p*=2.03; a*=.5; }
         return v;
       }
-      // click ripple: expanding ring distortion
-      float ripple(vec2 uv, vec4 rp){
-        if(rp.w<=0.) return 0.;
-        float d = distance(uv*min(u_res.x,u_res.y), rp.xy);
+      float ripple(vec2 px, vec4 rp){
+        if(rp.w<=0. || rp.z>3.) return 0.;
+        float d = distance(px, rp.xy);
         float t = rp.z;
-        float ring = sin(24.*d - t*14.) * exp(-3.5*abs(d - t*1.4)) * exp(-1.8*t) * rp.w;
-        return ring;
+        return sin(22.*d - t*13.) * exp(-3.2*abs(d - t*1.5)) * exp(-1.6*t);
       }
 
       void main(){
-        vec2 asp = min(u_res.x,u_res.y);
-        vec2 uv=(gl_FragCoord.xy*2.-u_res)/asp;
+        vec2 asp = vec2(min(u_res.x,u_res.y));
+        vec2 uv=(gl_FragCoord.xy*2.-u_res)/asp.x;
         float t=u_time*.06;
         vec2 m=u_mouse*.18;
 
@@ -62,7 +68,7 @@
 
         vec2 q=vec2(fbm(uv*1.4+t+m), fbm(uv*1.4-t*.7-m));
         vec2 r=vec2(fbm(uv*1.8+q*1.6+vec2(1.7,9.2)+t), fbm(uv*1.8+q*1.6+vec2(8.3,2.8)-t*.6));
-        float f=fbm(uv*1.6+r*1.4 + rip*.6);
+        float f=fbm(uv*1.6+r*1.4 + rip*.55);
 
         vec3 c1=vec3(.031,.039,.055);
         vec3 c2=vec3(.37,.95,.76);
@@ -72,24 +78,35 @@
         vec3 col=mix(c1,c2*.55,clamp(f*f*2.2,0.,1.));
         col=mix(col,c3*.5,clamp(length(q)*.55,0.,1.)*.6);
         col=mix(col,c4*.45,clamp(r.x*r.x*1.1,0.,1.)*.5);
+        col += vec3(.30,.95,.78)*abs(rip)*.9;
 
-        col += vec3(.30,.95,.78)*abs(rip)*.85;   // glow on ripple crests
-
-        float vig=1.-.45*length(uv*.72);
-        col*=vig;
+        col*=1.-.45*length(uv*.72);
         gl_FragColor=vec4(col,.9);
       }`;
 
     function compile(type, src) {
       const s = gl.createShader(type);
-      gl.shaderSource(s, src); gl.compileShader(s);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+        console.warn("[veyra] shader:", gl.getShaderInfoLog(s));
+        return null;
+      }
       return s;
     }
+    const vs_ = compile(gl.VERTEX_SHADER, vs);
+    const fs_ = compile(gl.FRAGMENT_SHADER, fs);
+    if (!vs_ || !fs_) { document.body.classList.add("no-webgl"); return; }
+
     const prog = gl.createProgram();
-    gl.attachShader(prog, compile(gl.VERTEX_SHADER, vs));
-    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, fs));
+    gl.attachShader(prog, vs_);
+    gl.attachShader(prog, fs_);
     gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return;
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+      console.warn("[veyra] link:", gl.getProgramInfoLog(prog));
+      document.body.classList.add("no-webgl");
+      return;
+    }
     gl.useProgram(prog);
 
     const buf = gl.createBuffer();
@@ -99,18 +116,17 @@
     gl.enableVertexAttribArray(loc);
     gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
 
-    const uRes = gl.getUniformLocation(prog, "u_res");
+    const uRes  = gl.getUniformLocation(prog, "u_res");
     const uTime = gl.getUniformLocation(prog, "u_time");
-    const uMouse = gl.getUniformLocation(prog, "u_mouse");
-    const uRip = gl.getUniformLocation(prog, "u_rip");
+    const uMouse= gl.getUniformLocation(prog, "u_mouse");
+    const uRip  = gl.getUniformLocation(prog, "u_rip");
 
-    const ripples = Array.from({ length: 6 }, () => ({ x: 0, y: 0, t: 99, s: 0 }));
+    const ripples = Array.from({ length: 6 }, () => ({ x: 0, y: 0, t: 99 }));
     let ri = 0;
-    function addRipple(px, py) {
+    window.__veyraRipple = (px, py) => {
       const r = ripples[ri++ % 6];
-      r.x = px; r.y = canvas.height - py; r.t = 0; r.s = 1;
-    }
-    window.__veyraRipple = addRipple;
+      r.x = px; r.y = canvas.height - py; r.t = 0;
+    };
 
     let mx = 0, my = 0, tx = 0, ty = 0;
     addEventListener("pointermove", e => {
@@ -119,8 +135,8 @@
     }, { passive: true });
 
     function resize() {
-      canvas.width = innerWidth * devicePixelRatio;
-      canvas.height = innerHeight * devicePixelRatio;
+      canvas.width = innerWidth * Math.min(devicePixelRatio, 2);
+      canvas.height = innerHeight * Math.min(devicePixelRatio, 2);
       gl.viewport(0, 0, canvas.width, canvas.height);
     }
     resize(); addEventListener("resize", resize);
@@ -133,8 +149,7 @@
       for (let i = 0; i < 6; i++) {
         const r = ripples[i];
         r.t += 1 / 60;
-        ripData[i*4+0] = r.x; ripData[i*4+1] = r.y;
-        ripData[i*4+2] = r.t; ripData[i*4+3] = r.s;
+        ripData[i*4] = r.x; ripData[i*4+1] = r.y; ripData[i*4+2] = r.t; ripData[i*4+3] = 1;
       }
       gl.uniform2f(uRes, canvas.width, canvas.height);
       gl.uniform1f(uTime, t);
@@ -145,12 +160,10 @@
     })(start);
   }
 
-  /* ============ click / tap liquid ripple everywhere ============ */
+  /* ============ click / tap ripples (WebGL + DOM ring) ============ */
   addEventListener("pointerdown", e => {
-    if (window.__veyraRipple) {
-      window.__veyraRipple(e.clientX * devicePixelRatio, e.clientY * devicePixelRatio);
-    }
-    // DOM ripple ring too (works without WebGL)
+    if (window.__veyraRipple)
+      window.__veyraRipple(e.clientX * Math.min(devicePixelRatio, 2), e.clientY * Math.min(devicePixelRatio, 2));
     const ring = document.createElement("span");
     ring.className = "click-ring";
     ring.style.left = e.clientX + "px";
@@ -174,33 +187,53 @@
     })();
   }
 
+  /* ================= scroll progress bar ================= */
+  const progress = document.createElement("div");
+  progress.className = "scroll-progress";
+  document.body.appendChild(progress);
+
   /* ================= nav ================= */
   const nav = $("#nav");
-  addEventListener("scroll", () => nav.classList.toggle("scrolled", scrollY > 24), { passive: true });
-  const burger = $("#burger");
-  if (burger) burger.addEventListener("click", () => nav.classList.toggle("open"));
-  $$(".nav-links a").forEach(a => a.addEventListener("click", () => nav.classList.remove("open")));
-
-  /* mobile status chip */
-  if ($(".nav-inner")) {
+  if (nav) {
+    addEventListener("scroll", () => nav.classList.toggle("scrolled", scrollY > 24), { passive: true });
+    const burger = $("#burger");
+    if (burger) burger.addEventListener("click", () => nav.classList.toggle("open"));
+    $$(".nav-links a").forEach(a => a.addEventListener("click", () => nav.classList.remove("open")));
     const chip = document.createElement("span");
     chip.className = "nav-status";
     chip.innerHTML = '<span class="dot"></span> LIVE';
-    $(".nav-inner").appendChild(chip);
+    $(".nav-inner")?.appendChild(chip);
   }
 
-  /* ================= page transitions (internal links) ================= */
-  $$('a[href$=".html"], a[href="./"], a[href="/"]').forEach(a => {
+  /* ================= page transitions ================= */
+  $$('a[href$=".html"]').forEach(a => {
     a.addEventListener("click", e => {
       const href = a.getAttribute("href");
       if (!href || href.startsWith("#") || a.target === "_blank") return;
       e.preventDefault();
       document.body.classList.add("page-out");
-      setTimeout(() => location.href = href, 260);
+      setTimeout(() => location.href = href, 240);
     });
   });
   addEventListener("pageshow", () => document.body.classList.remove("page-out"));
   document.body.classList.add("page-in");
+
+  /* ================= hero char stagger ================= */
+  if (!reduced) {
+    $$(".hero-title .line:not(.grad)").forEach(line => {
+      if (line.dataset.split) return;
+      line.dataset.split = "1";
+      const text = line.textContent;
+      line.textContent = "";
+      [...text].forEach((ch, i) => {
+        const s = document.createElement("span");
+        s.className = "ch";
+        s.style.animationDelay = (0.25 + i * 0.032) + "s";
+        s.textContent = ch === " " ? "\u00A0" : ch;
+        line.appendChild(s);
+      });
+    });
+  }
 
   /* ================= scroll reveals ================= */
   const io = new IntersectionObserver(entries => {
@@ -222,43 +255,70 @@
   $$(".icon-draw").forEach(el => iconIO.observe(el));
 
   /* ================= scroll parallax engine ================= */
-  if (!reduced) {
-    const pEls = $$("[data-parallax]").map(el => ({
-      el, sp: parseFloat(el.dataset.parallax) || .1, cur: 0
-    }));
-    let ticking = false;
-    function parallax() {
-      const vh = innerHeight;
-      const sc = scrollY;
-      for (const p of pEls) {
-        const r = p.el.getBoundingClientRect();
-        const center = r.top + r.height / 2 - vh / 2;
-        const target = -center * p.sp * .35;
-        p.cur += (target - p.cur) * .1;
-        p.el.style.transform = `translate3d(0, ${p.cur.toFixed(2)}px, 0)`;
-      }
-      ticking = false;
+  let parallaxTick = false;
+  const pEls = reduced ? [] : $$("[data-parallax]").map(el => ({
+    el, sp: parseFloat(el.dataset.parallax) || .1
+  }));
+  function parallax() {
+    const vh = innerHeight;
+    for (const p of pEls) {
+      const r = p.el.getBoundingClientRect();
+      const center = r.top + r.height / 2 - vh / 2;
+      const target = -center * p.sp * .5;
+      p.el.style.transform = `translate3d(0, ${target.toFixed(2)}px, 0)`;
     }
+    // progress bar
+    const doc = document.documentElement;
+    const max = doc.scrollHeight - vh;
+    progress.style.width = (max > 0 ? (scrollY / max) * 100 : 0) + "%";
+    parallaxTick = false;
+  }
+  if (!reduced) {
     addEventListener("scroll", () => {
-      if (!ticking) { requestAnimationFrame(parallax); ticking = true; }
+      if (!parallaxTick) { requestAnimationFrame(parallax); parallaxTick = true; }
     }, { passive: true });
     parallax();
   }
 
-  /* ================= sticky stacking deck (services & pricing) ================= */
+  /* ================= sticky deck stack (desktop) ================= */
   const deck = $(".deck");
-  if (deck && !reduced) {
-    const cards = $$(".deck-card", deck);
-    cards.forEach((card, i) => { card.style.top = `calc(96px + ${i * 14}px)`; });
-    const io2 = new IntersectionObserver(entries => {
-      entries.forEach(en => {
-        if (en.isIntersecting) {
-          const i = cards.indexOf(en.target);
-          cards.forEach((c, j) => c.classList.toggle("popped", j <= i));
-        }
-      });
-    }, { threshold: .35 });
-    cards.forEach(c => io2.observe(c));
+  const deckCards = deck ? $$(".deck-card", deck) : [];
+  if (deck && deckCards.length) {
+    deckCards.forEach((c, i) => { c.style.top = (110 + i * 16) + "px"; });
+    if (desktop && !reduced) {
+      let tick = false;
+      function deckScroll() {
+        const vh = innerHeight;
+        deckCards.forEach((c, i) => {
+          const next = deckCards[i + 1];
+          let ov = 0;
+          if (next) {
+            const nr = next.getBoundingClientRect();
+            ov = clamp(1 - (nr.top - (110 + (i + 1) * 16)) / (vh * .55), 0, 1);
+          }
+          const s = 1 - ov * .10;
+          const b = 1 - ov * .48;
+          const rx = ov * 4.5;
+          c.style.transform = `perspective(1200px) rotateX(${(-rx).toFixed(2)}deg) scale(${s.toFixed(3)})`;
+          c.style.filter = `brightness(${b.toFixed(3)}) saturate(${(1 - ov * .3).toFixed(3)})`;
+        });
+        tick = false;
+      }
+      addEventListener("scroll", () => {
+        if (!tick) { requestAnimationFrame(deckScroll); tick = true; }
+      }, { passive: true });
+      deckScroll();
+    }
+  }
+
+  /* swipe-deck dots (mobile) */
+  const dots = $$(".deck-dots span");
+  const deckTrack = $(".deck");
+  if (dots.length && deckTrack) {
+    deckTrack.addEventListener("scroll", () => {
+      const i = clamp(Math.round(deckTrack.scrollLeft / (deckTrack.scrollWidth / dots.length)), 0, dots.length - 1);
+      dots.forEach((d, j) => d.classList.toggle("on", j === i));
+    }, { passive: true });
   }
 
   /* ================= 3D tilt cards (desktop) ================= */
@@ -285,25 +345,13 @@
     $$(".magnetic").forEach(btn => {
       btn.addEventListener("pointermove", e => {
         const b = btn.getBoundingClientRect();
-        const dx = (e.clientX - b.left - b.width / 2) * .25;
-        const dy = (e.clientY - b.top - b.height / 2) * .35;
-        btn.style.transform = `translate(${dx}px, ${dy}px)`;
+        btn.style.transform = `translate(${(e.clientX - b.left - b.width / 2) * .25}px, ${(e.clientY - b.top - b.height / 2) * .35}px)`;
       });
       btn.addEventListener("pointerleave", () => { btn.style.transform = ""; });
     });
   }
 
-  /* ================= marquee deck dots + scroll spy ================= */
-  const dots = $$(".deck-dots span");
-  if (dots.length) {
-    const grid = $(".svc-grid");
-    grid.addEventListener("scroll", () => {
-      const i = Math.round(grid.scrollLeft / (grid.scrollWidth / dots.length - 20));
-      dots.forEach((d, j) => d.classList.toggle("on", j === Math.max(0, Math.min(i, dots.length - 1))));
-    }, { passive: true });
-  }
-
-  /* mobile try-fab + bottom sheet */
+  /* ================= mobile bottom sheet ================= */
   const fab = $(".try-fab");
   const pg = $("#pg");
   if (fab && pg) {
@@ -345,8 +393,8 @@
   "status": "ok",
   "pending": 2,
   "items": [
-    { "violation": "SPEEDING", "fine": 1000, "state": "paid" },
-    { "violation": "NO_HELMET", "fine": 500, "state": "due" }
+    { "violation": "SPEEDING",   "fine": 1000, "state": "paid" },
+    { "violation": "NO_HELMET",  "fine": 500,  "state": "due" }
   ],
   "masked": true
 }` },
@@ -374,13 +422,13 @@
         (function typeCmd() {
           if (ci <= sc.cmd.length) {
             termBody.textContent = sc.cmd.slice(0, ci++);
-            setTimeout(typeCmd, 18 + Math.random() * 30);
+            setTimeout(typeCmd, 16 + Math.random() * 26);
           } else {
             let oi = 0;
             (function typeOut() {
               if (oi <= sc.out.length) {
                 termBody.textContent = sc.cmd + "\n\n" + sc.out.slice(0, oi++);
-                setTimeout(typeOut, 6);
+                setTimeout(typeOut, 5);
               } else setTimeout(typeScene, 4200);
             })();
           }
