@@ -391,7 +391,26 @@ main, section, header, footer, nav { position: relative; z-index: 1; }
   .nav-links, .nav-cta { display: none; }
 }
 @media (max-width: 820px) {
-  .dock { display: none; }
+  .nav-links, .nav-cta { display: none; }
+}
+@media (max-width: 820px) {
+  .dock {
+    display: flex;                                   /* dock on phones too */
+    bottom: calc(var(--tabbar-h, 58px) + env(safe-area-inset-bottom) + 10px);
+    z-index: 86;                                     /* above the tabbar */
+    gap: 3px; padding: 6px 8px; border-radius: 19px;
+    backdrop-filter: blur(14px) saturate(1.5);
+    -webkit-backdrop-filter: blur(14px) saturate(1.5);
+    box-shadow: 0 14px 34px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.12);
+    max-width: calc(100vw - 20px); flex-wrap: nowrap;
+  }
+  .dock-item { width: 37px; height: 37px; border-radius: 11px; }
+  .dock-item svg { width: 17px; height: 17px; }
+  .dock-item.on::before { bottom: 2px; width: 3.5px; height: 3.5px; }
+  .dock-item::after { display: none; }               /* no tooltips on touch */
+  .dock-cta { height: 32px; padding: 0 12px; font-size: 12px; border-radius: 10px; }
+  .dock-sep { margin: 4px 2px; }
+  .footer { padding-bottom: calc(24px + var(--tabbar-h) + 64px); }  /* clear dock + bar */
 }
 @media (prefers-reduced-motion: reduce) {
   .dock { animation: none; }

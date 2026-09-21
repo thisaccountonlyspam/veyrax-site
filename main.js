@@ -66,8 +66,8 @@
     })();
   }
 
-  /* ---------- macOS dock (desktop) — injected on every page ---------- */
-  if (!isTouch) {
+  /* ---------- macOS dock — all devices (mobile gets compact variant) ---------- */
+  {
     try {
     const D = [
       ["Home", "index.html", "M3 10.5 12 3l9 7.5 M5 9.5V21h14V9.5 M9.5 21v-7h5v7"],
@@ -299,15 +299,15 @@
       let i = 0, phase = "type";
       (function tick() {
         if (i < FULL.length) {
-          i += (i < CMD.length) ? 1 : 3;              // type cmd slow, JSON fast
+          i += (i < CMD.length) ? 1 : 2;              // cmd slow, JSON readable
           txt.nodeValue = FULL.slice(0, i);
-          const speed = i < CMD.length ? 26 : 7;
+          const speed = i < CMD.length ? 26 : 11;
           setTimeout(tick, speed);
         } else {
           setTimeout(() => {                          // hold, wipe, loop
             i = 0; txt.nodeValue = "";
             setTimeout(tick, 350);
-          }, 4200);
+          }, 6000);
         }
       })();
     }
@@ -428,15 +428,26 @@
       });
     }
 
-    // hero scroll parallax + fade (transform/opacity only, shared rAF)
+    // hero scroll parallax: text drifts/fades, terminal+stats stay readable
     if (heroInner || plxEls.length) {
+      const heroKids = heroInner ? [...heroInner.children] : [];
       let psy = scrollY, tickQ = false;
       const apply = () => {
         tickQ = false;
-        if (heroInner) {
+        for (const el of heroKids) {
+          if (el.classList.contains("terminal")) {
+            el.style.opacity = "";                                      // never fades
+            el.style.transform = `translate3d(0, ${psy * .05}px, 0)`;   // slowest layer
+            continue;
+          }
+          if (el.classList.contains("stats")) {
+            el.style.opacity = "";                                      // stays readable
+            el.style.transform = `translate3d(0, ${psy * .1}px, 0)`;
+            continue;
+          }
           const f = Math.max(1 - psy / 620, 0);
-          heroInner.style.opacity = f;
-          heroInner.style.transform = `translateY(${psy * .16}px)`;
+          el.style.opacity = f;
+          el.style.transform = `translate3d(0, ${psy * .2}px, 0)`;      // fast layer
         }
         for (const el of plxEls) {
           el.style.transform = `translate3d(0, ${psy * parseFloat(el.dataset.plx)}px, 0)`;
@@ -450,8 +461,57 @@
     }
     } catch (err) { console.warn("hero fx skipped:", err); }
   } else {
-    // touch/reduced: hero stays visible, parallax layers pinned
+    // touch/reduced: parallax layers pinned
     plxEls.forEach(el => el.style.transform = "none");
+    // lightweight phone starfield — space theme on mobile, battery-first
+    if (!reduced) {
+      try {
+        const cv = document.createElement("canvas");
+        cv.className = "bg-space";
+        cv.setAttribute("aria-hidden", "true");
+        document.body.prepend(cv);
+        const ctx = cv.getContext("2d");
+        if (ctx) {
+          const TINTS = [[255,255,255],[255,255,255],[94,242,195],[122,182,255]];
+          let W, H, stars = [];
+          const build = () => {
+            W = innerWidth; H = innerHeight;
+            cv.width = W; cv.height = H;                 // DPR 1 — smooth > sharp
+            const n = Math.min(64, Math.round((W * H) / 16000));
+            stars = Array.from({ length: n }, () => {
+              const z = .25 + Math.random() * .75;
+              return { x: Math.random() * W, y: Math.random() * H, z,
+                r: .5 + z * 1.1, tw: Math.random() * 6.28, ts: .5 + Math.random() * 1.4,
+                c: TINTS[(Math.random() * TINTS.length) | 0] };
+            });
+          };
+          build();
+          let rT; addEventListener("resize", () => { clearTimeout(rT); rT = setTimeout(build, 250); });
+          let sy = scrollY, lastT = performance.now(), live = true;
+          const loop = t => {
+            const dt = Math.min((t - lastT) / 16.7, 3); lastT = t;
+            sy += (scrollY - sy) * .08;
+            ctx.clearRect(0, 0, W, H);
+            for (const s of stars) {
+              s.x -= s.z * .045 * dt;                    // slow drift
+              if (s.x < -3) { s.x = W + 3; s.y = Math.random() * H; }
+              s.tw += s.ts * .012 * dt;
+              const a = .3 + .5 * s.z + Math.sin(s.tw) * .25 * s.z;
+              ctx.globalAlpha = Math.max(a, .08);
+              ctx.fillStyle = `rgb(${s.c[0]},${s.c[1]},${s.c[2]})`;
+              ctx.beginPath(); ctx.arc(s.x, s.y - sy * .06 * s.z, s.r, 0, 6.2832); ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+          };
+          const raf = t => { if (live) { loop(t); requestAnimationFrame(raf); } };
+          requestAnimationFrame(raf);
+          document.addEventListener("visibilitychange", () => {
+            if (document.hidden) live = false;
+            else if (!live) { live = true; lastT = performance.now(); requestAnimationFrame(raf); }
+          });
+        }
+      } catch (err) { console.warn("mobile stars skipped:", err); }
+    }
   }
 
   /* ---------- docs scroll-spy: color nav + light the focused block ---------- */
@@ -492,7 +552,8 @@
         c.style.setProperty("--a", (i * STEP) + "deg");
         c.style.setProperty("--r", RAD + "px");
       });
-      let theta = -((focusIdx() ) * STEP), vel = 0, dragging = false, lastX = 0, raf = null;
+      let theta = 0, vel = 0, dragging = false, lastX = 0, moved = 0, raf = null;
+      theta = -(focusIdx()) * STEP;          // init AFTER theta exists (no TDZ)
       function focusIdx() {
         const norm = ((-theta % 360) + 360) % 360;
         return Math.round(norm / STEP) % N;
@@ -523,11 +584,16 @@
       stage.addEventListener("pointermove", ev => {
         if (!dragging) return;
         const dx = ev.clientX - lastX; lastX = ev.clientX;
-        theta += dx * .22; vel = dx * .22;
+        theta += dx * .22; vel = dx * .22; moved += Math.abs(dx);
       });
       const stop = () => { dragging = false; stage.classList.remove("grabbing"); };
       stage.addEventListener("pointerup", stop);
       stage.addEventListener("pointercancel", stop);
+      // a real drag should not click the card's buttons
+      stage.addEventListener("click", ev => {
+        if (moved > 8) { ev.preventDefault(); ev.stopPropagation(); }
+        moved = 0;
+      }, true);
       // arrows / keys
       const stepBy = dir => { vel = 0; theta = -(focusIdx() + dir) * STEP; };
       stage.setAttribute("tabindex", "0");
