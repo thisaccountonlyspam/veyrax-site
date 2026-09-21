@@ -14,6 +14,7 @@
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const isTouch = matchMedia("(hover: none)").matches;
   const desktop = matchMedia("(min-width: 821px)").matches;
+  const LOW_POWER = isTouch; // phones: cheaper canvas, no swim parallax
 
   /* ================= liquid WebGL background ================= */
   const canvas = $("#liquid");
@@ -135,8 +136,8 @@
     }, { passive: true });
 
     function resize() {
-      canvas.width = innerWidth * Math.min(devicePixelRatio, 2);
-      canvas.height = innerHeight * Math.min(devicePixelRatio, 2);
+      canvas.width = innerWidth * Math.min(devicePixelRatio, LOW_POWER ? 1.3 : 2);
+      canvas.height = innerHeight * Math.min(devicePixelRatio, LOW_POWER ? 1.3 : 2);
       gl.viewport(0, 0, canvas.width, canvas.height);
     }
     resize(); addEventListener("resize", resize);
@@ -254,30 +255,95 @@
   }, { threshold: .3 });
   $$(".icon-draw").forEach(el => iconIO.observe(el));
 
-  /* ================= scroll parallax engine ================= */
-  let parallaxTick = false;
-  const pEls = reduced ? [] : $$("[data-parallax]").map(el => ({
-    el, sp: parseFloat(el.dataset.parallax) || .1
-  }));
-  function parallax() {
+  /* ================= unified scroll engine =================
+     lerped smooth parallax · velocity lean · depth motes ·
+     hero fade-out · ring rotation · progress — one RAF loop   */
+  const lerp = (a, b, t) => a + (b - a) * t;
+
+  // depth motes — floating particles at different scroll speeds
+  const motesBox = document.createElement("div");
+  motesBox.className = "motes";
+  document.body.appendChild(motesBox);
+  const motes = [];
+  if (!reduced) {
+    for (let i = 0; i < 18; i++) {
+      const m = document.createElement("span");
+      m.className = "mote";
+      const size = 2 + Math.random() * 3.5;
+      m.style.width = m.style.height = size.toFixed(1) + "px";
+      m.style.left = (Math.random() * 100).toFixed(1) + "%";
+      m.style.opacity = (.15 + Math.random() * .4).toFixed(2);
+      m.style.animationDelay = (-Math.random() * 7).toFixed(1) + "s";
+      motesBox.appendChild(m);
+      motes.push({ el: m, speed: .05 + Math.random() * .17, phase: Math.random() * 2200, x: Math.random() * 60 - 30 });
+    }
+  }
+
+  let pEls = [], fEls = [], rEls = [];
+  function measure() {
+    pEls = (reduced || isTouch) ? [] : $$("[data-parallax]").map(el => {
+      const t = el.style.transform; el.style.transform = "";
+      const r = el.getBoundingClientRect();
+      const base = r.top + scrollY + r.height / 2;
+      el.style.transform = t || "";
+      return { el, sp: parseFloat(el.dataset.parallax) || .1, base };
+    });
+    fEls = $$("[data-fade]").map(el => ({ el, rate: parseFloat(el.dataset.fade) || .25 }));
+    rEls = reduced ? [] : $$("[data-prot]").map(el => ({ el, sp: parseFloat(el.dataset.prot) || .002 }));
+  }
+
+  let sy = scrollY, lean = 0;
+  function frame() {
     const vh = innerHeight;
+    const y = scrollY;
+    sy = lerp(sy, y, .09);            // smooth follow
+    const vel = y - sy;               // scroll velocity
+    lean = lerp(lean, clamp(vel * .0011, -.55, .55), .12);
+    document.documentElement.style.setProperty("--lean", lean.toFixed(3) + "deg");
+
     for (const p of pEls) {
-      const r = p.el.getBoundingClientRect();
-      const center = r.top + r.height / 2 - vh / 2;
-      const target = -center * p.sp * .5;
+      const center = p.base - sy;
+      const target = -(center - vh / 2) * p.sp * .55;
       p.el.style.transform = `translate3d(0, ${target.toFixed(2)}px, 0)`;
     }
-    // progress bar
-    const doc = document.documentElement;
-    const max = doc.scrollHeight - vh;
-    progress.style.width = (max > 0 ? (scrollY / max) * 100 : 0) + "%";
-    parallaxTick = false;
+    for (const f of fEls) {
+      if (f.el.classList.contains("reveal") && !f.el.classList.contains("in")) continue;
+      f.el.style.opacity = clamp(1 - (sy / vh) * f.rate, 0, 1).toFixed(3);
+    }
+    for (const r of rEls) {
+      r.el.style.rotate = (sy * r.sp).toFixed(2) + "deg";
+    }
+    for (const m of motes) {
+      const loop = vh + 240;
+      const yy = vh - ((sy * m.speed + m.phase) % loop) - 120;
+      m.el.style.transform = `translate3d(${m.x.toFixed(0)}px, ${yy.toFixed(1)}px, 0)`;
+    }
+
+    const max = document.documentElement.scrollHeight - vh;
+    progress.style.width = (max > 0 ? clamp((y / max) * 100, 0, 100) : 0) + "%";
+    requestAnimationFrame(frame);
   }
-  if (!reduced) {
+  if (!reduced && !isTouch) {
+    measure();
+    let rto;
+    addEventListener("resize", () => { clearTimeout(rto); rto = setTimeout(measure, 200); });
+    addEventListener("load", measure);
+    requestAnimationFrame(frame);
+  } else {
+    // touch / reduced: progress only — zero transform jitter while scrolling
     addEventListener("scroll", () => {
-      if (!parallaxTick) { requestAnimationFrame(parallax); parallaxTick = true; }
+      const vh2 = innerHeight, max = document.documentElement.scrollHeight - vh2;
+      progress.style.width = (max > 0 ? clamp((scrollY / max) * 100, 0, 100) : 0) + "%";
     }, { passive: true });
-    parallax();
+  }
+
+  /* ============ mobile-only motion language ============
+     no parallax swim — instead: snap-pop cards, spring reveals */
+  if (isTouch && !reduced) {
+    const mio = new IntersectionObserver(entries => {
+      entries.forEach(en => en.target.classList.toggle("m-in", en.isIntersecting));
+    }, { threshold: .55 });
+    $$(".deck-card, .svc, .price, .step, .comp").forEach(el => mio.observe(el));
   }
 
   /* ================= sticky deck stack (desktop) ================= */
@@ -301,6 +367,13 @@
           const rx = ov * 4.5;
           c.style.transform = `perspective(1200px) rotateX(${(-rx).toFixed(2)}deg) scale(${s.toFixed(3)})`;
           c.style.filter = `brightness(${b.toFixed(3)}) saturate(${(1 - ov * .3).toFixed(3)})`;
+          // inner parallax: icon drifts inside the sticky card
+          const ic = c.querySelector(".deck-ic");
+          if (ic) {
+            const cr = c.getBoundingClientRect();
+            const off = clamp((cr.top + cr.height / 2 - vh / 2) * -0.05, -16, 16);
+            ic.style.translate = `0 ${off.toFixed(1)}px`;
+          }
         });
         tick = false;
       }
@@ -324,11 +397,18 @@
   /* ================= 3D tilt cards (desktop) ================= */
   if (!isTouch && !reduced) {
     $$("[data-tilt]").forEach(card => {
+      const glare = document.createElement("span");
+      glare.className = "glare";
+      card.appendChild(glare);
       let raf = null;
       card.addEventListener("pointermove", e => {
         const b = card.getBoundingClientRect();
-        const rx = ((e.clientY - b.top) / b.height - .5) * -8;
-        const ry = ((e.clientX - b.left) / b.width - .5) * 8;
+        const px = ((e.clientX - b.left) / b.width) * 100;
+        const py = ((e.clientY - b.top) / b.height) * 100;
+        card.style.setProperty("--gx", px.toFixed(1) + "%");
+        card.style.setProperty("--gy", py.toFixed(1) + "%");
+        const rx = ((py / 100) - .5) * -8;
+        const ry = ((px / 100) - .5) * 8;
         if (raf) cancelAnimationFrame(raf);
         raf = requestAnimationFrame(() => {
           card.style.transform = `perspective(700px) rotateX(${rx}deg) rotateY(${ry}deg) translateY(-3px)`;
