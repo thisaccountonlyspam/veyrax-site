@@ -16,9 +16,14 @@
   const desktop = matchMedia("(min-width: 821px)").matches;
   const LOW_POWER = isTouch; // phones: cheaper canvas, no swim parallax
 
-  /* ================= liquid WebGL background ================= */
+  /* ================= liquid WebGL background (desktop only) ================= */
   const canvas = $("#liquid");
-  if (canvas && !reduced) initLiquid(canvas);
+  if (isTouch) {
+    // phones/tablets: static premium gradients, no canvas, no heavy blur
+    document.body.classList.add("touch-plain");
+  } else if (canvas && !reduced) {
+    initLiquid(canvas);
+  }
 
   function initLiquid(canvas) {
     const gl = canvas.getContext("webgl", { antialias: false, alpha: true })
@@ -342,8 +347,27 @@
   if (isTouch && !reduced) {
     const mio = new IntersectionObserver(entries => {
       entries.forEach(en => en.target.classList.toggle("m-in", en.isIntersecting));
-    }, { threshold: .55 });
+    }, { threshold: .25, rootMargin: "0px 0px -8% 0px" });
     $$(".deck-card, .svc, .price, .step, .comp").forEach(el => mio.observe(el));
+
+    /* lightweight REAL parallax on touch — only conflict-free parents,
+       rAF-throttled, no lerp swim */
+    const mps = [
+      { el: $(".hero-title"), sp: .10 },
+      { el: $(".marquee-track"), sp: -.06 },
+      { el: $(".footer-grid"), sp: .04 },
+    ].filter(x => x.el);
+    let mtick = false;
+    addEventListener("scroll", () => {
+      if (mtick) return;
+      mtick = true;
+      requestAnimationFrame(() => {
+        const y = scrollY;
+        for (const p of mps)
+          p.el.style.transform = `translate3d(0, ${(y * p.sp).toFixed(1)}px, 0)`;
+        mtick = false;
+      });
+    }, { passive: true });
   }
 
   /* ================= sticky deck stack (desktop) ================= */
@@ -587,6 +611,78 @@
     });
     pgInput?.addEventListener("keydown", e => { if (e.key === "Enter") pgRun.click(); });
   }
+
+  /* ================= demo payment modal (Razorpay-style) ================= */
+  const payOverlay = document.createElement("div");
+  payOverlay.className = "pay-overlay";
+  payOverlay.innerHTML = `
+    <div class="pay-modal glass-border" role="dialog" aria-label="checkout">
+      <button class="pay-x" aria-label="close">✕</button>
+      <div class="pay-head">
+        <span class="pay-brand">⌖ VEYRA<span>X</span></span>
+        <span class="pay-amount">₹299<span>/mo</span></span>
+      </div>
+      <p class="pay-plan">Pro — 5,000 full queries / month</p>
+      <div class="seg pay-tabs">
+        <button class="active" data-pane="upi">UPI</button>
+        <button data-pane="card">Card</button>
+        <button data-pane="net">NetBanking</button>
+      </div>
+      <div class="pay-pane on" data-pane="upi">
+        <div class="field"><label>UPI ID</label><input type="text" placeholder="name@okhdfc / name@upi" /></div>
+      </div>
+      <div class="pay-pane" data-pane="card">
+        <div class="field"><label>CARD NUMBER</label><input type="text" placeholder="4111 1111 1111 1111" /></div>
+        <div style="display:flex;gap:10px">
+          <div class="field" style="flex:1"><label>EXPIRY</label><input type="text" placeholder="MM/YY" /></div>
+          <div class="field" style="flex:1"><label>CVV</label><input type="password" placeholder="•••" /></div>
+        </div>
+      </div>
+      <div class="pay-pane" data-pane="net">
+        <div class="field"><label>BANK</label>
+          <div class="seg" style="display:flex;flex-wrap:wrap">
+            <button type="button">HDFC</button><button type="button">SBI</button>
+            <button type="button">ICICI</button><button type="button">Axis</button>
+          </div>
+        </div>
+      </div>
+      <button class="btn-primary btn-block pay-now">Pay ₹299</button>
+      <p class="pay-note">Demo checkout · secured by Razorpay · GST invoice included</p>
+      <div class="pay-done">
+        <svg viewBox="0 0 52 52" class="pay-check"><circle cx="26" cy="26" r="24"/><path d="M15 27 L23 35 L38 18"/></svg>
+        <h3>Pro activated</h3>
+        <p>Your key is upgraded. 5,000 full queries unlocked.</p>
+      </div>
+    </div>`;
+  document.body.appendChild(payOverlay);
+
+  function openPay() { payOverlay.classList.add("open"); document.body.style.overflow = "hidden"; }
+  function closePay() {
+    payOverlay.classList.remove("open");
+    payOverlay.querySelector(".pay-modal").classList.remove("processing", "done");
+    document.body.style.overflow = "";
+  }
+  $$('[data-pay], a[href="pricing.html"].btn-primary').forEach(b => {
+    b.addEventListener("click", e => { e.preventDefault(); openPay(); });
+  });
+  payOverlay.querySelector(".pay-x").addEventListener("click", closePay);
+  payOverlay.addEventListener("click", e => {
+    if (e.target === payOverlay) closePay();
+  });
+  $$(".pay-tabs button", payOverlay).forEach(t => t.addEventListener("click", () => {
+    $$(".pay-tabs button", payOverlay).forEach(x => x.classList.remove("active"));
+    t.classList.add("active");
+    $$(".pay-pane", payOverlay).forEach(p => p.classList.toggle("on", p.dataset.pane === t.dataset.pane));
+  }));
+  payOverlay.querySelector(".pay-now").addEventListener("click", function () {
+    const modal = payOverlay.querySelector(".pay-modal");
+    modal.classList.add("processing");
+    this.textContent = "Processing\u2026";
+    setTimeout(() => {
+      modal.classList.remove("processing");
+      modal.classList.add("done");
+    }, 1600);
+  });
 
   /* footer year */
   $$(".yr").forEach(el => el.textContent = new Date().getFullYear());
