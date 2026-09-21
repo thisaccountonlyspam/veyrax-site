@@ -13,11 +13,6 @@
 </head>
 <body>
 
-<canvas id="liquid"></canvas>
-<div class="glow glow-1" data-parallax="0.22" aria-hidden="true"></div>
-<div class="glow glow-2" data-parallax="-0.16" aria-hidden="true"></div>
-<div class="grid-floor" data-parallax="0.08" aria-hidden="true"></div>
-<div class="noise" aria-hidden="true"></div>
 
 <nav class="nav" id="nav">
   <div class="nav-inner">
@@ -40,8 +35,8 @@
       <a href="about.html">About</a>
     </div>
     <div class="nav-cta">
-      <a class="btn-ghost magnetic" href="login.html">Sign in</a>
-      <a class="btn-primary magnetic" href="signup.html">Get API key</a>
+      <a class="btn-ghost" href="login.html">Sign in</a>
+      <a class="btn-primary" href="signup.html">Get API key</a>
     </div>
     <button class="burger" id="burger" aria-label="menu">☰</button>
   </div>
@@ -49,29 +44,24 @@
 
 <!-- ============ HERO ============ -->
 <header class="hero" id="top">
-  <div class="scene3d" data-parallax="0.10" aria-hidden="true">
-    <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div>
-    <div class="shard s1"></div><div class="shard s2"></div><div class="shard s3"></div><div class="shard s4"></div>
-  </div>
-
-  <div class="hero-inner">
+    <div class="hero-inner">
     <div class="hero-badge reveal">
       <span class="dot"></span> by <b>Team Veyra</b> · v1 live · 6 services · 20+ endpoints
     </div>
-    <h1 class="hero-title" data-parallax="0.14">
+    <h1 class="hero-title">
       <span class="line reveal">Every record.</span>
       <span class="line reveal grad">One request.</span>
     </h1>
-    <p class="hero-sub reveal" data-parallax="0.08">
+    <p class="hero-sub reveal">
       Vehicle, Licence, Challan, Permit, Aadhaar &amp; Tax intelligence —
       unified behind a single lawful API by <b>Team Veyra</b>.
     </p>
-    <div class="hero-cta reveal" data-parallax="0.05">
-      <a class="btn-primary btn-lg magnetic" href="playground.html">Query the API →</a>
-      <a class="btn-ghost btn-lg magnetic" href="services.html">The six services</a>
+    <div class="hero-cta reveal">
+      <a class="btn-primary btn-lg" href="playground.html">Query the API →</a>
+      <a class="btn-ghost btn-lg" href="services.html">The six services</a>
     </div>
 
-    <div class="terminal glass-border reveal" data-parallax="-0.06" id="terminal">
+    <div class="terminal reveal" id="terminal">
       <div class="term-bar">
         <span class="t-dot r"></span><span class="t-dot y"></span><span class="t-dot g"></span>
         <span class="term-title">veyrax — live</span>
@@ -80,7 +70,7 @@
       <pre class="term-body" id="term-body"></pre>
     </div>
 
-    <div class="stats reveal" id="stats" data-parallax="-0.03">
+    <div class="stats reveal" id="stats">
       <div class="stat"><b data-count="20">0</b><span>endpoints</span></div>
       <div class="stat"><b data-count="6">0</b><span>services</span></div>
       <div class="stat"><b data-count="99" data-suffix=".9%">0</b><span>uptime target</span></div>
@@ -89,11 +79,6 @@
   </div>
   <div class="scroll-hint" aria-hidden="true"><span></span></div>
 </header>
-
-<div class="wave-sep" aria-hidden="true">
-  <svg class="wave w1" viewBox="0 0 1440 90" preserveAspectRatio="none"><path d="M0,50 C240,90 480,10 720,50 C960,90 1200,10 1440,50 L1440,90 L0,90 Z"/></svg>
-  <svg class="wave w2" viewBox="0 0 1440 90" preserveAspectRatio="none"><path d="M0,55 C260,15 500,85 740,50 C980,15 1220,80 1440,45 L1440,90 L0,90 Z"/></svg>
-</div>
 
 <div class="marquee" aria-hidden="true">
   <div class="marquee-track">
@@ -109,14 +94,14 @@
 <!-- ============ SERVICE DECK (sticky stack) ============ -->
 <section class="section" id="services">
   <div class="wrap">
-    <div class="sec-head reveal" data-parallax="0.05">
+    <div class="sec-head reveal">
       <span class="kicker">/ 01 — Services</span>
       <h2>Six services.<br />One key.</h2>
       <p>Scroll — each card stacks over the last. Every service is a single GET.</p>
     </div>
 
     <div class="deck" id="deck">
-      <article class="deck-card glass-border reveal" data-cursor="VIEW">
+      <article class="deck-card reveal" data-cursor="VIEW">
         <span class="deck-num">01</span>
         <div class="deck-ic icon-draw">
           <svg viewBox="0 0 64 64" class="icon">
@@ -132,12 +117,12 @@
           <div class="fields"><code>GET /api/v1/rc/:regno</code><code>rc-basic</code><code>validity</code></div>
         </div>
         <div class="deck-cta">
-          <a class="btn-primary magnetic" href="services/rc.html">Open service</a>
+          <a class="btn-primary" href="services/rc.html">Open service</a>
           <a class="btn-ghost" href="playground.html">Try masked</a>
         </div>
       </article>
 
-      <article class="deck-card glass-border reveal" data-cursor="VIEW">
+      <article class="deck-card reveal" data-cursor="VIEW">
         <span class="deck-num">02</span>
         <div class="deck-ic icon-draw">
           <svg viewBox="0 0 64 64" class="icon">
@@ -153,12 +138,12 @@
           <div class="fields"><code>GET /api/v1/dl/:dlno</code><code>dl-img</code><code>dl-form3</code></div>
         </div>
         <div class="deck-cta">
-          <a class="btn-primary magnetic" href="services/dl.html">Open service</a>
+          <a class="btn-primary" href="services/dl.html">Open service</a>
           <a class="btn-ghost" href="playground.html">Try masked</a>
         </div>
       </article>
 
-      <article class="deck-card glass-border reveal" data-cursor="VIEW">
+      <article class="deck-card reveal" data-cursor="VIEW">
         <span class="deck-num">03</span>
         <div class="deck-ic icon-draw">
           <svg viewBox="0 0 64 64" class="icon">
@@ -174,12 +159,12 @@
           <div class="fields"><code>GET /api/v1/challan/:vehicleno</code><code>challan-detail</code></div>
         </div>
         <div class="deck-cta">
-          <a class="btn-primary magnetic" href="services/challan.html">Open service</a>
+          <a class="btn-primary" href="services/challan.html">Open service</a>
           <a class="btn-ghost" href="playground.html">Try masked</a>
         </div>
       </article>
 
-      <article class="deck-card glass-border reveal" data-cursor="VIEW">
+      <article class="deck-card reveal" data-cursor="VIEW">
         <span class="deck-num">04</span>
         <div class="deck-ic icon-draw">
           <svg viewBox="0 0 64 64" class="icon">
@@ -194,12 +179,12 @@
           <div class="fields"><code>GET /api/v1/aadhaar/:regno</code><code>aadhaar-ekyc</code></div>
         </div>
         <div class="deck-cta">
-          <a class="btn-primary magnetic" href="services/aadhaar.html">Open service</a>
+          <a class="btn-primary" href="services/aadhaar.html">Open service</a>
           <a class="btn-ghost" href="playground.html">Try masked</a>
         </div>
       </article>
 
-      <article class="deck-card glass-border reveal" data-cursor="VIEW">
+      <article class="deck-card reveal" data-cursor="VIEW">
         <span class="deck-num">05</span>
         <div class="deck-ic icon-draw">
           <svg viewBox="0 0 64 64" class="icon">
@@ -215,12 +200,12 @@
           <div class="fields"><code>GET /api/v1/hpt/:regno</code></div>
         </div>
         <div class="deck-cta">
-          <a class="btn-primary magnetic" href="services/hpt.html">Open service</a>
+          <a class="btn-primary" href="services/hpt.html">Open service</a>
           <a class="btn-ghost" href="playground.html">Try masked</a>
         </div>
       </article>
 
-      <article class="deck-card glass-border reveal" data-cursor="VIEW">
+      <article class="deck-card reveal" data-cursor="VIEW">
         <span class="deck-num">06</span>
         <div class="deck-ic icon-draw">
           <svg viewBox="0 0 64 64" class="icon">
@@ -237,7 +222,7 @@
           <div class="fields"><code>GET /api/v1/permit/:regno</code><code>tax</code><code>states</code><code>rtos</code></div>
         </div>
         <div class="deck-cta">
-          <a class="btn-primary magnetic" href="services/permit.html">Open service</a>
+          <a class="btn-primary" href="services/permit.html">Open service</a>
           <a class="btn-ghost" href="playground.html">Try masked</a>
         </div>
       </article>
@@ -252,7 +237,7 @@
 <!-- ============ WORK GRID (AT-style) ============ -->
 <section class="section" id="work">
   <div class="wrap">
-    <div class="sec-head reveal" data-parallax="0.05">
+    <div class="sec-head reveal">
       <span class="kicker">/ 02 — The work</span>
       <h2>Pick a service.<br />Dive in.</h2>
     </div>
@@ -270,12 +255,12 @@
 <!-- ============ PLAYGROUND TEASER ============ -->
 <section class="section section-alt" id="playground">
   <div class="wrap">
-    <div class="sec-head reveal" data-parallax="0.05">
+    <div class="sec-head reveal">
       <span class="kicker">/ 02 — Playground</span>
       <h2>Try before<br />you sign up.</h2>
       <p>3 free masked queries per visit. Real data needs a key.</p>
     </div>
-    <div class="pg glass-border reveal" data-parallax="-0.04">
+    <div class="pg reveal">
       <div class="pg-controls">
         <div class="pg-field">
           <label>Service</label>
@@ -290,7 +275,7 @@
           <label>Query</label>
           <input id="pg-input" type="text" placeholder="MH02BE0001" spellcheck="false" />
         </div>
-        <button class="btn-primary btn-lg magnetic" id="pg-run">Run query</button>
+        <button class="btn-primary btn-lg" id="pg-run">Run query</button>
         <div class="pg-quota" id="pg-quota">3 free queries left</div>
       </div>
       <pre class="pg-out" id="pg-out">// response appears here — try "MH02BE0001"</pre>
@@ -302,12 +287,12 @@
 <!-- ============ HOW ============ -->
 <section class="section" id="how">
   <div class="wrap">
-    <div class="sec-head reveal" data-parallax="0.05">
+    <div class="sec-head reveal">
       <span class="kicker">/ 03 — How</span>
       <h2>Three steps.<br />Zero infrastructure.</h2>
     </div>
     <div class="steps">
-      <div class="step reveal" data-parallax="0.04">
+      <div class="step reveal">
         <span class="step-num">01</span>
         <div class="step-icon icon-draw">
           <svg viewBox="0 0 64 64" class="icon">
@@ -318,7 +303,7 @@
         <h3>Get your key</h3>
         <p>Dashboard signup. Free trial = 10 masked queries a day.</p>
       </div>
-      <div class="step reveal" data-parallax="0.06">
+      <div class="step reveal">
         <span class="step-num">02</span>
         <div class="step-icon icon-draw">
           <svg viewBox="0 0 64 64" class="icon">
@@ -331,7 +316,7 @@
         <p>One GET with your key in the header. JSON in, JSON out.</p>
         <div class="svc-meta"><code>curl api.veyrax.in/api/v1/rc/MH02BE0001 -H "X-API-Key: vx_..."</code></div>
       </div>
-      <div class="step reveal" data-parallax="0.08">
+      <div class="step reveal">
         <span class="step-num">03</span>
         <div class="step-icon icon-draw">
           <svg viewBox="0 0 64 64" class="icon">
@@ -350,29 +335,29 @@
 <!-- ============ PRICING TEASER ============ -->
 <section class="section section-alt" id="pricing">
   <div class="wrap">
-    <div class="sec-head reveal" data-parallax="0.05">
+    <div class="sec-head reveal">
       <span class="kicker">/ 04 — Pricing</span>
       <h2>Start free.<br />Upgrade when it clicks.</h2>
     </div>
     <div class="price-grid">
-      <div class="price reveal" data-parallax="0.04">
+      <div class="price reveal">
         <h3>Trial</h3>
         <div class="amount">₹0<span>/forever</span></div>
         <ul><li>10 masked queries / day</li><li>All 6 services</li><li>Community support</li></ul>
-        <a class="btn-ghost btn-block magnetic" href="signup.html">Start free</a>
+        <a class="btn-ghost btn-block" href="signup.html">Start free</a>
       </div>
-      <div class="price price-featured glass-border reveal" data-parallax="0.02">
+      <div class="price price-featured reveal">
         <span class="price-tag">MOST POPULAR</span>
         <h3>Pro</h3>
         <div class="amount">₹299<span>/month</span></div>
         <ul><li><b>5,000</b> full queries / month</li><li>Unmasked responses</li><li>Priority latency + cache</li><li>Usage analytics &amp; logs</li></ul>
-        <a class="btn-primary btn-block magnetic" href="pricing.html">Get Pro — UPI / cards</a>
+        <a class="btn-primary btn-block" href="pricing.html">Get Pro — UPI / cards</a>
       </div>
-      <div class="price reveal" data-parallax="0.04">
+      <div class="price reveal">
         <h3>Enterprise</h3>
         <div class="amount custom">Let's talk</div>
         <ul><li>Unlimited scale</li><li>SLA &amp; dedicated infra</li><li>Custom endpoints</li></ul>
-        <a class="btn-ghost btn-block magnetic" href="contact.html">Contact us</a>
+        <a class="btn-ghost btn-block" href="contact.html">Contact us</a>
       </div>
     </div>
   </div>
@@ -381,34 +366,34 @@
 <!-- ============ COMPLIANCE ============ -->
 <section class="section" id="compliance">
   <div class="wrap">
-    <div class="sec-head reveal" data-parallax="0.05">
+    <div class="sec-head reveal">
       <span class="kicker">/ 05 — Compliance</span>
       <h2>Lawful, by design.</h2>
       <p>Built for verified professional use — investigations, due diligence, vehicle verification, fraud prevention.</p>
     </div>
     <div class="comp-grid">
-      <div class="comp reveal" data-parallax="0.04">
+      <div class="comp reveal">
         <div class="comp-ic ok icon-draw">
           <svg viewBox="0 0 64 64" class="icon"><circle cx="32" cy="32" r="22"/><path pathLength="1" d="M22 32 L29 39 L43 24"/></svg>
         </div>
         <h4>Verified use-cases</h4>
         <p>KYC verification, used-vehicle due diligence, insurance fraud checks, journalistic research.</p>
       </div>
-      <div class="comp reveal" data-parallax="0.055">
+      <div class="comp reveal">
         <div class="comp-ic no icon-draw">
           <svg viewBox="0 0 64 64" class="icon"><circle cx="32" cy="32" r="22"/><path pathLength="1" d="M23 23 L41 41 M41 23 L23 41"/></svg>
         </div>
         <h4>Zero tolerance</h4>
         <p>Stalking, harassment, doxxing or resale of personal data. Violating keys are revoked and logged.</p>
       </div>
-      <div class="comp reveal" data-parallax="0.07">
+      <div class="comp reveal">
         <div class="comp-ic icon-draw">
           <svg viewBox="0 0 64 64" class="icon"><path pathLength="1" d="M20 10 H40 L48 18 V54 H20 Z"/><path pathLength="1" class="ic-accent" d="M27 26 H41 M27 34 H41 M27 42 H35"/></svg>
         </div>
         <h4>Full audit trail</h4>
         <p>Every query stamped with a request ID. Logs retained where legally required.</p>
       </div>
-      <div class="comp reveal" data-parallax="0.085">
+      <div class="comp reveal">
         <div class="comp-ic icon-draw">
           <svg viewBox="0 0 64 64" class="icon"><circle cx="32" cy="32" r="21"/><path pathLength="1" d="M11 32 H53"/><path pathLength="1" class="ic-accent" d="M32 11 Q42 32 32 53 Q22 32 32 11"/></svg>
         </div>

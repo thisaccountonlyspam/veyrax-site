@@ -1,680 +1,125 @@
 /* ============================================================
-   VEYRA X OSINT — main.js · v2 motion engine
-   Liquid WebGL (+ripple) · scroll parallax · sticky deck stack ·
-   hero char stagger · magnetic · cursor glow · page transitions
+   VEYRA X OSINT — v3 · main.js
+   STATIC site. The only JS: tiny UI state helpers.
+   No animation loops, no parallax, no canvas, no shaders.
    ============================================================ */
 (() => {
   "use strict";
-
-  document.documentElement.classList.add("js");
-
   const $  = (s, c) => (c || document).querySelector(s);
   const $$ = (s, c) => [...(c || document).querySelectorAll(s)];
-  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const isTouch = matchMedia("(hover: none)").matches;
-  const desktop = matchMedia("(min-width: 821px)").matches;
-  const LOW_POWER = isTouch; // phones: cheaper canvas, no swim parallax
 
-  /* ================= liquid WebGL background (desktop only) ================= */
-  const canvas = $("#liquid");
-  if (isTouch) {
-    // phones/tablets: static premium gradients, no canvas, no heavy blur
-    document.body.classList.add("touch-plain");
-  } else if (canvas && !reduced) {
-    initLiquid(canvas);
+  /* ---------- reveal on scroll (one IO, class toggle only) ---------- */
+  const els = $$(".reveal");
+  if (isTouch || reduced || !("IntersectionObserver" in window)) {
+    els.forEach(el => el.classList.add("in"));
+  } else {
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(en => {
+        if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); }
+      });
+    }, { threshold: .1, rootMargin: "0px 0px -30px 0px" });
+    els.forEach(el => io.observe(el));
   }
 
-  function initLiquid(canvas) {
-    const gl = canvas.getContext("webgl", { antialias: false, alpha: true })
-            || canvas.getContext("experimental-webgl");
-    if (!gl) { document.body.classList.add("no-webgl"); return; }
-
-    // pick float precision the GPU actually supports
-    const highOK = (gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT) || { precision: 0 }).precision > 0;
-    const PREC = highOK ? "highp" : "mediump";
-
-    const vs = `attribute vec2 p; void main(){ gl_Position = vec4(p,0.,1.); }`;
-
-    const fs = `
-      precision ${PREC} float;
-      uniform vec2  u_res;
-      uniform float u_time;
-      uniform vec2  u_mouse;
-      uniform vec4  u_rip[6];
-      uniform float u_hue;
-
-      vec2 hash(vec2 p){ p=vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3)));
-        return -1.+2.*fract(sin(p)*43758.5453123); }
-      float noise(vec2 p){
-        vec2 i=floor(p), f=fract(p);
-        vec2 u=f*f*(3.-2.*f);
-        return mix(mix(dot(hash(i),f),dot(hash(i+vec2(1,0)),f-vec2(1,0)),u.x),
-                   mix(dot(hash(i+vec2(0,1)),f-vec2(0,1)),dot(hash(i+vec2(1,1)),f-vec2(1,1)),u.x),u.y);
-      }
-      float fbm(vec2 p){
-        float v=0., a=.55;
-        for(int i=0;i<5;i++){ v+=a*noise(p); p*=2.03; a*=.5; }
-        return v;
-      }
-      float ripple(vec2 px, vec4 rp){
-        if(rp.w<=0. || rp.z>3.) return 0.;
-        float d = distance(px, rp.xy);
-        float t = rp.z;
-        return sin(22.*d - t*13.) * exp(-3.2*abs(d - t*1.5)) * exp(-1.6*t);
-      }
-
-      void main(){
-        vec2 asp = vec2(min(u_res.x,u_res.y));
-        vec2 uv=(gl_FragCoord.xy*2.-u_res)/asp.x;
-        float t=u_time*.06;
-        vec2 m=u_mouse*.18;
-
-        float rip=0.;
-        for(int i=0;i<6;i++){ rip += ripple(gl_FragCoord.xy, u_rip[i]); }
-
-        vec2 q=vec2(fbm(uv*1.4+t+m), fbm(uv*1.4-t*.7-m));
-        vec2 r=vec2(fbm(uv*1.8+q*1.6+vec2(1.7,9.2)+t), fbm(uv*1.8+q*1.6+vec2(8.3,2.8)-t*.6));
-        float f=fbm(uv*1.6+r*1.4 + rip*.55);
-
-        vec3 c1=vec3(.031,.039,.055);
-        vec3 c2=vec3(.37,.95,.76);
-        vec3 c3=vec3(.35,.65,1.);
-        vec3 c4=vec3(.71,.42,1.);
-
-        vec3 col=mix(c1,c2*.55,clamp(f*f*2.2,0.,1.));
-        col=mix(col,c3*.5,clamp(length(q)*.55,0.,1.)*.6);
-        col=mix(col,c4*.45,clamp(r.x*r.x*1.1,0.,1.)*.5);
-        col += vec3(.30,.95,.78)*abs(rip)*.9;
-
-        col*=1.-.45*length(uv*.72);
-        // scroll-driven hue rotation (section mood shifts)
-        float ca=cos(u_hue), sa=sin(u_hue);
-        mat3 hr = mat3(
-          .299+.701*ca+.168*sa, .587-.587*ca+.330*sa, .114-.114*ca-.497*sa,
-          .299-.299*ca-.328*sa, .587+.413*ca+.035*sa, .114-.114*ca+.292*sa,
-          .299-.300*ca+1.25*sa, .587-.588*ca-1.05*sa, .114+.886*ca-.203*sa);
-        col = hr * col;
-        gl_FragColor=vec4(col,.9);
-      }`;
-
-    function compile(type, src) {
-      const s = gl.createShader(type);
-      gl.shaderSource(s, src);
-      gl.compileShader(s);
-      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
-        console.warn("[veyra] shader:", gl.getShaderInfoLog(s));
-        return null;
-      }
-      return s;
-    }
-    const vs_ = compile(gl.VERTEX_SHADER, vs);
-    const fs_ = compile(gl.FRAGMENT_SHADER, fs);
-    if (!vs_ || !fs_) { document.body.classList.add("no-webgl"); return; }
-
-    const prog = gl.createProgram();
-    gl.attachShader(prog, vs_);
-    gl.attachShader(prog, fs_);
-    gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-      console.warn("[veyra] link:", gl.getProgramInfoLog(prog));
-      document.body.classList.add("no-webgl");
-      return;
-    }
-    gl.useProgram(prog);
-
-    const buf = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
-    const loc = gl.getAttribLocation(prog, "p");
-    gl.enableVertexAttribArray(loc);
-    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-
-    const uRes  = gl.getUniformLocation(prog, "u_res");
-    const uTime = gl.getUniformLocation(prog, "u_time");    const uMouse= gl.getUniformLocation(prog, "u_mouse");
-    const uRip = gl.getUniformLocation(prog, "u_rip");
-    const uHue = gl.getUniformLocation(prog, "u_hue");
-    let hue = 0, hueT = 0;
-    window.__veyraHue = v => { hueT = v; };
-
-    const ripples = Array.from({ length: 6 }, () => ({ x: 0, y: 0, t: 99 }));
-    let ri = 0;
-    window.__veyraRipple = (px, py) => {
-      const r = ripples[ri++ % 6];
-      r.x = px; r.y = canvas.height - py; r.t = 0;
-    };
-
-    let mx = 0, my = 0, tx = 0, ty = 0;
-    addEventListener("pointermove", e => {
-      tx = (e.clientX / innerWidth - .5) * 2;
-      ty = -(e.clientY / innerHeight - .5) * 2;
-    }, { passive: true });
-
-    function resize() {
-      // adaptive quality: start 1.5x DPR, degrade if the GPU struggles
-      const cap = perf.degrade ? 1 : 1.5;
-      canvas.width = innerWidth * Math.min(devicePixelRatio, cap);
-      canvas.height = innerHeight * Math.min(devicePixelRatio, cap);
-      gl.viewport(0, 0, canvas.width, canvas.height);
-    }
-    resize(); addEventListener("resize", resize);
-
-    // adaptive perf monitor — if frames run slow, drop canvas resolution once
-    const perf = { degrade: false, acc: 0, n: 0 };
-    setInterval(() => {
-      if (perf.n > 30 && perf.acc / perf.n > 26 && !perf.degrade) {
-        perf.degrade = true; resize();
-      }
-      perf.acc = 0; perf.n = 0;
-    }, 2000);
-
-    const start = performance.now();
-    const ripData = new Float32Array(24);
-    (function frame(now) {
-      if (!document.hidden) {
-        const t0 = performance.now();
-        const t = (now - start) / 1000;
-        mx += (tx - mx) * .04; my += (ty - my) * .04;
-        for (let i = 0; i < 6; i++) {
-          const r = ripples[i];
-          r.t += 1 / 60;
-          ripData[i*4] = r.x; ripData[i*4+1] = r.y; ripData[i*4+2] = r.t; ripData[i*4+3] = 1;
-        }
-        gl.uniform2f(uRes, canvas.width, canvas.height);
-        gl.uniform1f(uTime, t);
-        gl.uniform2f(uMouse, mx, my);
-        gl.uniform4fv(uRip, ripData);
-        hue += (hueT - hue) * .03;
-        gl.uniform1f(uHue, hue);
-        gl.drawArrays(gl.TRIANGLES, 0, 3);
-        perf.acc += performance.now() - t0; perf.n++;
-      }
-      requestAnimationFrame(frame);
-    })(start);
-  }
-
-  /* ============ click / tap ripples (WebGL + DOM ring) ============ */
-  addEventListener("pointerdown", e => {
-    if (window.__veyraRipple)
-      window.__veyraRipple(e.clientX * Math.min(devicePixelRatio, 2), e.clientY * Math.min(devicePixelRatio, 2));
-    const ring = document.createElement("span");
-    ring.className = "click-ring";
-    ring.style.left = e.clientX + "px";
-    ring.style.top = e.clientY + "px";
-    document.body.appendChild(ring);
-    ring.addEventListener("animationend", () => ring.remove());
+  /* ---------- scroll progress bar ---------- */
+  const progress = document.createElement("div");
+  progress.className = "scroll-progress";
+  document.body.appendChild(progress);
+  let pTick = false;
+  addEventListener("scroll", () => {
+    if (pTick) return;
+    pTick = true;
+    requestAnimationFrame(() => {
+      const max = document.documentElement.scrollHeight - innerHeight;
+      progress.style.width = (max > 0 ? (scrollY / max) * 100 : 0) + "%";
+      pTick = false;
+    });
   }, { passive: true });
 
-  /* ============ custom cursor system (desktop, AT-style) ============
-     dot = instant · ring = lerps & morphs to VIEW label · glow = slow
-     attached to <html> so transforms can never break viewport fixing */
+  /* ---------- custom cursor (desktop only, transform-only) ---------- */
   if (!isTouch && !reduced) {
     const lp = (a, b, t) => a + (b - a) * t;
-    const mk = (cls, html) => {
-      const el = document.createElement("div");
-      el.className = cls;
-      if (html) el.innerHTML = html;
-      document.documentElement.appendChild(el);
-      return el;
-    };
-    const glow = mk("cursor-glow");
-    const ring = mk("cursor-ring", "<span></span>");
-    const dot  = mk("cursor-dot");
+    const mk = cls => { const el = document.createElement("div"); el.className = cls; document.documentElement.appendChild(el); return el; };
+    const glow = mk("cursor-glow"), ring = mk("cursor-ring"), dot = mk("cursor-dot");
+    ring.innerHTML = "<span></span>";
     document.body.classList.add("has-cursor");
-
-    let gx = innerWidth / 2, gy = innerHeight / 2;
-    let rx = gx, ry = gy, wx = gx, wy = gy;
-
+    let gx = -100, gy = -100, rx = gx, ry = gy, wx = gx, wy = gy;
     addEventListener("pointermove", e => {
       gx = e.clientX; gy = e.clientY;
       const t = e.target;
-      const view = t.closest && t.closest('[data-cursor]');
-      const link = t.closest && t.closest("a, button, .seg button, [data-tilt], input, .price");
+      const view = t.closest && t.closest("[data-cursor]");
+      const link = t.closest && t.closest("a, button, .seg button, input, .price");
       document.body.classList.toggle("cur-view", !!view);
       document.body.classList.toggle("cur-link", !!link && !view);
       if (view) ring.firstElementChild.textContent = view.dataset.cursor || "VIEW";
     }, { passive: true });
-    addEventListener("pointerdown", () => document.body.classList.add("cur-down"));
-    addEventListener("pointerup", () => document.body.classList.remove("cur-down"));
-
+    // CSS handles hover styles; JS only moves 3 elements, transform-only
     (function loop() {
-      rx = lp(rx, gx, .2);  ry = lp(ry, gy, .2);
-      wx = lp(wx, gx, .09); wy = lp(wy, gy, .09);
-      dot.style.transform  = `translate3d(${gx.toFixed(1)}px, ${gy.toFixed(1)}px, 0)`;
-      ring.style.transform = `translate3d(${rx.toFixed(1)}px, ${ry.toFixed(1)}px, 0)`;
-      glow.style.transform = `translate3d(${wx.toFixed(1)}px, ${wy.toFixed(1)}px, 0)`;
+      rx = lp(rx, gx, .25); ry = lp(ry, gy, .25);
+      wx = lp(wx, gx, .1);  wy = lp(wy, gy, .1);
+      dot.style.transform  = `translate3d(${gx}px, ${gy}px, 0)`;
+      ring.style.transform = `translate3d(${rx}px, ${ry}px, 0)`;
+      glow.style.transform = `translate3d(${wx}px, ${wy}px, 0)`;
       requestAnimationFrame(loop);
     })();
   }
 
-  /* ================= scroll progress bar ================= */
-  const progress = document.createElement("div");
-  progress.className = "scroll-progress";
-  document.body.appendChild(progress);
-
-  /* ================= nav ================= */
-  const nav = $("#nav");
-  if (nav) {
-    addEventListener("scroll", () => nav.classList.toggle("scrolled", scrollY > 24), { passive: true });
-    const burger = $("#burger");
-    if (burger) burger.addEventListener("click", () => nav.classList.toggle("open"));
-    $$(".nav-links a").forEach(a => a.addEventListener("click", () => nav.classList.remove("open")));
-    const chip = document.createElement("span");
-    chip.className = "nav-status";
-    chip.innerHTML = '<span class="dot"></span> LIVE';
-    $(".nav-inner")?.appendChild(chip);
+  /* ---------- overlay menu ---------- */
+  const menu = document.createElement("div");
+  menu.className = "ov-menu";
+  menu.innerHTML = `
+    <button class="ov-x" aria-label="close menu">✕</button>
+    <nav class="ov-links">
+      <a href="index.html"><em>01</em>Home</a>
+      <a href="services.html"><em>02</em>Services</a>
+      <a href="playground.html"><em>03</em>Playground</a>
+      <a href="docs.html"><em>04</em>Docs</a>
+      <a href="pricing.html"><em>05</em>Pricing</a>
+      <a href="about.html"><em>06</em>About</a>
+      <a href="dashboard.html"><em>07</em>Dashboard</a>
+    </nav>
+    <div class="ov-foot">
+      <span>VEYRA X OSINT</span>
+      <span><span class="dot"></span> all systems operational</span>
+    </div>`;
+  document.body.appendChild(menu);
+  const burger = $("#burger");
+  if (burger) burger.addEventListener("click", () => {
+    menu.classList.add("open");
+    document.body.style.overflow = "hidden";
+  });
+  menu.querySelector(".ov-x").addEventListener("click", closeMenu);
+  menu.querySelectorAll(".ov-links a").forEach(a =>
+    a.addEventListener("click", closeMenu));
+  addEventListener("keydown", e => { if (e.key === "Escape") closeMenu(); });
+  function closeMenu() {
+    menu.classList.remove("open");
+    document.body.style.overflow = "";
   }
 
-  /* ================= page transitions — curtain wipe ================= */
+  /* ---------- curtain page transition ---------- */
   const curtain = document.createElement("div");
   curtain.className = "curtain";
-  curtain.innerHTML = '<span></span><span></span><span></span><span></span><span></span>';
+  curtain.innerHTML = "<span></span><span></span><span></span><span></span><span></span>";
   document.body.appendChild(curtain);
   $$('a[href$=".html"]').forEach(a => {
     a.addEventListener("click", e => {
       const href = a.getAttribute("href");
       if (!href || href.startsWith("#") || a.target === "_blank") return;
       e.preventDefault();
+      closeMenu();
       curtain.classList.add("run");
-      setTimeout(() => location.href = href, 520);
+      setTimeout(() => location.href = href, 500);
     });
   });
   addEventListener("pageshow", () => curtain.classList.remove("run"));
-  document.body.classList.add("page-in");
 
-  /* ================= full-screen overlay menu ================= */
-  const menu = document.createElement("div");
-  menu.className = "ov-menu";
-  menu.innerHTML = `
-    <button class="ov-x" aria-label="close menu">✕</button>
-    <nav class="ov-links">
-      <a href="index.html" data-i="0"><em>01</em>Home</a>
-      <a href="services.html" data-i="1"><em>02</em>Services</a>
-      <a href="playground.html" data-i="2"><em>03</em>Playground</a>
-      <a href="docs.html" data-i="3"><em>04</em>Docs</a>
-      <a href="pricing.html" data-i="4"><em>05</em>Pricing</a>
-      <a href="about.html" data-i="5"><em>06</em>About</a>
-      <a href="dashboard.html" data-i="6"><em>07</em>Dashboard</a>
-    </nav>
-    <div class="ov-foot">
-      <span>VEYRA X OSINT</span>
-      <span class="dot"></span> all systems operational
-    </div>`;
-  document.body.appendChild(menu);
-  const burgerBtn = $("#burger");
-  if (burgerBtn) {
-    burgerBtn.addEventListener("click", () => {
-      menu.classList.add("open");
-      document.body.style.overflow = "hidden";
-    });
-  }
-  menu.querySelector(".ov-x").addEventListener("click", () => {
-    menu.classList.remove("open");
-    document.body.style.overflow = "";
-  });
-  menu.querySelectorAll(".ov-links a").forEach(a => {
-    a.addEventListener("click", e => {
-      const href = a.getAttribute("href");
-      e.preventDefault();
-      menu.classList.remove("open");
-      document.body.style.overflow = "";
-      curtain.classList.add("run");
-      setTimeout(() => location.href = href, 520);
-    });
-  });
-  addEventListener("keydown", e => {
-    if (e.key === "Escape") {
-      menu.classList.remove("open");
-      document.body.style.overflow = "";
-    }
-  });
-  /* ================= AT-style hover-zoom work grid ================= */
-  const grid = $(".work-grid");
-  if (grid && !isTouch && !reduced) {
-    $$(".work-card", grid).forEach(card => {
-      card.addEventListener("pointerenter", () => grid.classList.add("zooming"));
-      card.addEventListener("pointerleave", () => grid.classList.remove("zooming"));
-    });
-  }
-
-  /* ================= mobile bottom sheet ================= */
-
-  /* ================= hero char stagger (desktop only) ================= */
-  if (!reduced && !isTouch) {
-    $$(".hero-title .line:not(.grad)").forEach(line => {
-      if (line.dataset.split) return;
-      line.dataset.split = "1";
-      const text = line.textContent;
-      line.textContent = "";
-      [...text].forEach((ch, i) => {
-        const s = document.createElement("span");
-        s.className = "ch";
-        s.style.animationDelay = (0.25 + i * 0.032) + "s";
-        s.textContent = ch === " " ? "\u00A0" : ch;
-        line.appendChild(s);
-      });
-    });
-  }
-
-  /* ================= scroll reveals =================
-     touch: instant show — no reveal animation on mobile */
-  const revealEls = $$('.reveal');
-  if (isTouch || reduced) {
-    revealEls.forEach(el => el.classList.add("in"));
-  } else {
-    const io = new IntersectionObserver(entries => {
-      entries.forEach(en => {
-        if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); }
-      });
-    }, { threshold: .12, rootMargin: "0px 0px -40px 0px" });
-    revealEls.forEach((el, i) => {
-      el.style.transitionDelay = `${(i % 6) * 70}ms`;
-      io.observe(el);
-    });
-  }
-
-  /* SVG icon draw-in (desktop only — mobile shows them fully drawn) */
-  if (isTouch || reduced) {
-    $$(".icon-draw").forEach(el => el.classList.add("in"));
-  } else {
-    const iconIO = new IntersectionObserver(entries => {
-      entries.forEach(en => {
-        if (en.isIntersecting) { en.target.classList.add("in"); iconIO.unobserve(en.target); }
-      });
-    }, { threshold: .3 });
-    $$(".icon-draw").forEach(el => iconIO.observe(el));
-  }
-
-  /* ================= unified scroll engine =================
-     lerped smooth parallax · velocity lean · depth motes ·
-     hero fade-out · ring rotation · progress — one RAF loop   */
-  const lerp = (a, b, t) => a + (b - a) * t;
-
-  // depth motes — floating particles at different scroll speeds
-  const motesBox = document.createElement("div");
-  motesBox.className = "motes";
-  document.body.appendChild(motesBox);
-  const motes = [];
-  if (!reduced && !isTouch) {
-    for (let i = 0; i < 18; i++) {
-      const m = document.createElement("span");
-      m.className = "mote";
-      const size = 2 + Math.random() * 3.5;
-      m.style.width = m.style.height = size.toFixed(1) + "px";
-      m.style.left = (Math.random() * 100).toFixed(1) + "%";
-      m.style.opacity = (.15 + Math.random() * .4).toFixed(2);
-      m.style.animationDelay = (-Math.random() * 7).toFixed(1) + "s";
-      motesBox.appendChild(m);
-      motes.push({ el: m, speed: .05 + Math.random() * .17, phase: Math.random() * 2200, x: Math.random() * 60 - 30 });
-    }
-  }
-
-  let pEls = [], fEls = [], rEls = [];
-  function measure() {
-    pEls = (reduced || isTouch) ? [] : $$("[data-parallax]").map(el => {
-      const t = el.style.transform; el.style.transform = "";
-      const r = el.getBoundingClientRect();
-      const base = r.top + scrollY + r.height / 2;
-      el.style.transform = t || "";
-      return { el, sp: parseFloat(el.dataset.parallax) || .1, base };
-    });
-    fEls = $$("[data-fade]").map(el => ({ el, rate: parseFloat(el.dataset.fade) || .25 }));
-    rEls = reduced ? [] : $$("[data-prot]").map(el => ({ el, sp: parseFloat(el.dataset.prot) || .002 }));
-  }
-
-  let sy = scrollY, lean = 0, lastY = -1;
-  function frame() {
-    const vh = innerHeight;
-    const y = scrollY;
-    sy = lerp(sy, y, .09);            // smooth follow
-    const vel = y - sy;               // scroll velocity
-    lean = lerp(lean, clamp(vel * .0011, -.55, .55), .12);
-    document.documentElement.style.setProperty("--lean", lean.toFixed(3) + "deg");
-
-    if (Math.abs(y - lastY) > .4) {   // dirty-check: skip DOM writes when idle
-      lastY = y;
-      for (const p of pEls) {
-        const center = p.base - sy;
-        const target = -(center - vh / 2) * p.sp * .55;
-        p.el.style.transform = `translate3d(0, ${target.toFixed(2)}px, 0)`;
-      }
-      for (const m of motes) {
-        const loop = vh + 240;
-        const yy = vh - ((sy * m.speed + m.phase) % loop) - 120;
-        m.el.style.transform = `translate3d(${m.x.toFixed(0)}px, ${yy.toFixed(1)}px, 0)`;
-      }
-    }
-    for (const f of fEls) {
-      if (f.el.classList.contains("reveal") && !f.el.classList.contains("in")) continue;
-      f.el.style.opacity = clamp(1 - (sy / vh) * f.rate, 0, 1).toFixed(3);
-    }
-    for (const r of rEls) {
-      r.el.style.rotate = (sy * r.sp).toFixed(2) + "deg";
-    }
-
-    const max = document.documentElement.scrollHeight - vh;
-    const prog = max > 0 ? clamp((y / max) * 100, 0, 100) : 0;
-    progress.style.width = prog + "%";
-    if (window.__veyraHue) window.__veyraHue(prog * 0.0125); // section mood shift
-    requestAnimationFrame(frame);
-  }
-  if (!reduced && !isTouch) {
-    measure();
-    let rto;
-    addEventListener("resize", () => { clearTimeout(rto); rto = setTimeout(measure, 200); });
-    addEventListener("load", measure);
-    requestAnimationFrame(frame);
-  } else {
-    // touch / reduced: progress only — zero transform jitter while scrolling
-    addEventListener("scroll", () => {
-      const vh2 = innerHeight, max = document.documentElement.scrollHeight - vh2;
-      progress.style.width = (max > 0 ? clamp((scrollY / max) * 100, 0, 100) : 0) + "%";
-    }, { passive: true });
-  }
-
-  /* ============ mobile-only motion language ============
-     no parallax swim — instead: snap-pop cards, spring reveals */
-  /* ============ mobile: nothing — static, minimal, professional ============ */
-  /* (all decorative motion disabled on touch by design) */
-
-  /* ================= sticky deck stack (desktop) ================= */
-  const deck = $(".deck");
-  const deckCards = deck ? $$(".deck-card", deck) : [];
-  if (deck && deckCards.length) {
-    deckCards.forEach((c, i) => { c.style.top = (110 + i * 16) + "px"; });
-    if (desktop && !reduced) {
-      let tick = false;
-      function deckScroll() {
-        const vh = innerHeight;
-        deckCards.forEach((c, i) => {
-          const next = deckCards[i + 1];
-          let ov = 0;
-          if (next) {
-            const nr = next.getBoundingClientRect();
-            ov = clamp(1 - (nr.top - (110 + (i + 1) * 16)) / (vh * .55), 0, 1);
-          }
-          const s = 1 - ov * .10;
-          const b = 1 - ov * .48;
-          const rx = ov * 4.5;
-          c.style.transform = `perspective(1200px) rotateX(${(-rx).toFixed(2)}deg) scale(${s.toFixed(3)})`;
-          c.style.filter = `brightness(${b.toFixed(3)}) saturate(${(1 - ov * .3).toFixed(3)})`;
-          // inner parallax: icon drifts inside the sticky card
-          const ic = c.querySelector(".deck-ic");
-          if (ic) {
-            const cr = c.getBoundingClientRect();
-            const off = clamp((cr.top + cr.height / 2 - vh / 2) * -0.05, -16, 16);
-            ic.style.translate = `0 ${off.toFixed(1)}px`;
-          }
-        });
-        tick = false;
-      }
-      addEventListener("scroll", () => {
-        if (!tick) { requestAnimationFrame(deckScroll); tick = true; }
-      }, { passive: true });
-      deckScroll();
-    }
-  }
-
-  /* swipe-deck dots (mobile) */
-  const dots = $$(".deck-dots span");
-  const deckTrack = $(".deck");
-  if (dots.length && deckTrack) {
-    deckTrack.addEventListener("scroll", () => {
-      const i = clamp(Math.round(deckTrack.scrollLeft / (deckTrack.scrollWidth / dots.length)), 0, dots.length - 1);
-      dots.forEach((d, j) => d.classList.toggle("on", j === i));
-    }, { passive: true });
-  }
-
-  /* ================= 3D tilt cards (desktop) ================= */
-  if (!isTouch && !reduced) {
-    $$("[data-tilt]").forEach(card => {
-      const glare = document.createElement("span");
-      glare.className = "glare";
-      card.appendChild(glare);
-      let raf = null;
-      card.addEventListener("pointermove", e => {
-        const b = card.getBoundingClientRect();
-        const px = ((e.clientX - b.left) / b.width) * 100;
-        const py = ((e.clientY - b.top) / b.height) * 100;
-        card.style.setProperty("--gx", px.toFixed(1) + "%");
-        card.style.setProperty("--gy", py.toFixed(1) + "%");
-        const rx = ((py / 100) - .5) * -8;
-        const ry = ((px / 100) - .5) * 8;
-        if (raf) cancelAnimationFrame(raf);
-        raf = requestAnimationFrame(() => {
-          card.style.transform = `perspective(700px) rotateX(${rx}deg) rotateY(${ry}deg) translateY(-3px)`;
-        });
-      });
-      card.addEventListener("pointerleave", () => {
-        card.style.transform = "perspective(700px) rotateX(0) rotateY(0)";
-      });
-    });
-  }
-
-  /* ================= magnetic buttons ================= */
-  if (!isTouch && !reduced) {
-    $$(".magnetic").forEach(btn => {
-      btn.addEventListener("pointermove", e => {
-        const b = btn.getBoundingClientRect();
-        btn.style.transform = `translate(${(e.clientX - b.left - b.width / 2) * .25}px, ${(e.clientY - b.top - b.height / 2) * .35}px)`;
-      });
-      btn.addEventListener("pointerleave", () => { btn.style.transform = ""; });
-    });
-  }
-
-  /* ================= mobile bottom sheet ================= */
-  const fab = $(".try-fab");
-  const pg = $("#pg");
-  if (fab && pg) {
-    fab.addEventListener("click", () => {
-      pg.classList.add("sheet-open");
-      fab.classList.add("hidden");
-      document.body.style.overflow = "hidden";
-    });
-    const close = document.createElement("button");
-    close.className = "sheet-close";
-    close.setAttribute("aria-label", "close");
-    close.textContent = "✕";
-    pg.prepend(close);
-    close.addEventListener("click", () => {
-      pg.classList.remove("sheet-open");
-      fab.classList.remove("hidden");
-      document.body.style.overflow = "";
-    });
-  }
-
-  /* ================= terminal typing ================= */
-  const termBody = $("#term-body");
-  if (termBody) {
-    const scenes = [
-      { cmd: 'curl api.veyrax.in/api/v1/rc/MH02BE0001 \\\n  -H "X-API-Key: vx_live_••••••••"', out:
-`{
-  "status": "ok",
-  "data": {
-    "owner":      "R****h S****a",
-    "vehicle":    "MAHINDRA XUV700",
-    "regDate":    "2021-08-14",
-    "insurance":  "valid till 2027-08-13",
-    "fitness":    "valid till 2036-08-13",
-    "masked":     true
-  }
-}` },
-      { cmd: 'curl api.veyrax.in/api/v1/challan/MH12QT1122 \\\n  -H "X-API-Key: vx_live_••••••••"', out:
-`{
-  "status": "ok",
-  "pending": 2,
-  "items": [
-    { "violation": "SPEEDING",   "fine": 1000, "state": "paid" },
-    { "violation": "NO_HELMET",  "fine": 500,  "state": "due" }
-  ],
-  "masked": true
-}` },
-      { cmd: 'curl api.veyrax.in/api/v1/dl/MH1220190001234 \\\n  -H "X-API-Key: vx_live_••••••••"', out:
-`{
-  "status": "ok",
-  "data": {
-    "name":     "P****a K***r",
-    "validity": "2031-04-02",
-    "classes":  ["LMV", "MCWG"],
-    "photo":    "masked(base64)",
-    "masked":   true
-  }
-}` },
-    ];
-
-    if (reduced || isTouch) {
-      termBody.textContent = "$ curl api.veyrax.in/api/v1/rc/MH02BE0001\n\n{ status: ok, masked: true }";
-    } else {
-      let si = 0;
-      (function typeScene() {
-        const sc = scenes[si % scenes.length]; si++;
-        let ci = 0;
-        termBody.textContent = "";
-        (function typeCmd() {
-          if (ci <= sc.cmd.length) {
-            termBody.textContent = sc.cmd.slice(0, ci++);
-            setTimeout(typeCmd, 16 + Math.random() * 26);
-          } else {
-            let oi = 0;
-            (function typeOut() {
-              if (oi <= sc.out.length) {
-                termBody.textContent = sc.cmd + "\n\n" + sc.out.slice(0, oi++);
-                setTimeout(typeOut, 5);
-              } else setTimeout(typeScene, 4200);
-            })();
-          }
-        })();
-      })();
-    }
-  }
-
-  /* ================= stat counters ================= */
-  const statsEl = $("#stats");
-  if (statsEl) {
-    const cio = new IntersectionObserver(en => {
-      if (!en[0].isIntersecting) return;
-      cio.disconnect();
-      $$("b[data-count]", statsEl).forEach(b => {
-        const target = +b.dataset.count, suffix = b.dataset.suffix || "";
-        const t0 = performance.now(), dur = 1400;
-        (function tick(now) {
-          const p = Math.min((now - t0) / dur, 1);
-          b.textContent = Math.round(target * (1 - Math.pow(1 - p, 3))) + suffix;
-          if (p < 1) requestAnimationFrame(tick);
-        })(t0);
-      });
-    }, { threshold: .4 });
-    cio.observe(statsEl);
-  }
-
-  /* ================= playground ================= */
-  const pgRun = $("#pg-run");
-  const pgOut = $("#pg-out");
-  const pgQuota = $("#pg-quota");
-  const pgInput = $("#pg-input");
-  const seg = $("#pg-service");
+  /* ---------- playground (masked demo) ---------- */
+  const pgRun = $("#pg-run"), pgOut = $("#pg-out"), pgQuota = $("#pg-quota"),
+        pgInput = $("#pg-input"), seg = $("#pg-service");
   let svc = "rc", quota = 3;
-
   if (seg) {
     $$("button", seg).forEach(b => b.addEventListener("click", () => {
       $(".active", seg)?.classList.remove("active");
@@ -683,9 +128,7 @@
       if (pgInput) pgInput.placeholder = svc === "dl" ? "MH1220190001234" : "MH02BE0001";
     }));
   }
-
   const mask = n => n ? String(n).split(" ").map(w => w[0] + "*".repeat(Math.max(w.length - 1, 1))).join(" ") : n;
-
   function fakeResponse() {
     const q = (pgInput?.value || "MH02BE0001").toUpperCase().trim();
     const rid = "vx_" + Math.random().toString(36).slice(2, 10);
@@ -704,26 +147,22 @@
       regNo: q, permitClass: "National Permit", validUpto: "2027-03-31",
       taxMode: "PAID", masked: true } };
   }
-
   if (pgRun) {
     pgRun.addEventListener("click", () => {
       if (quota <= 0) { pgOut.textContent = "⚠ free demo limit reached — get a key to keep querying."; return; }
       quota--;
       if (pgQuota) pgQuota.textContent = `${quota} free quer${quota === 1 ? "y" : "ies"} left`;
-      const spin = ["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"];
-      let i = 0;
-      pgOut.textContent = spin[0] + " querying …";
-      const iv = setInterval(() => { pgOut.textContent = spin[i++ % 8] + " querying …"; }, 90);
-      setTimeout(() => { clearInterval(iv); pgOut.textContent = JSON.stringify(fakeResponse(), null, 2); }, 900);
+      pgOut.textContent = "… querying";
+      setTimeout(() => { pgOut.textContent = JSON.stringify(fakeResponse(), null, 2); }, 550);
     });
     pgInput?.addEventListener("keydown", e => { if (e.key === "Enter") pgRun.click(); });
   }
 
-  /* ================= demo payment modal (Razorpay-style) ================= */
+  /* ---------- demo payment modal ---------- */
   const payOverlay = document.createElement("div");
   payOverlay.className = "pay-overlay";
   payOverlay.innerHTML = `
-    <div class="pay-modal glass-border" role="dialog" aria-label="checkout">
+    <div class="pay-modal" role="dialog" aria-label="checkout">
       <button class="pay-x" aria-label="close">✕</button>
       <div class="pay-head">
         <span class="pay-brand">⌖ VEYRA<span>X</span></span>
@@ -758,37 +197,31 @@
       <div class="pay-done">
         <svg viewBox="0 0 52 52" class="pay-check"><circle cx="26" cy="26" r="24"/><path d="M15 27 L23 35 L38 18"/></svg>
         <h3>Pro activated</h3>
-        <p>Your key is upgraded. 5,000 full queries unlocked.</p>
+        <p style="color:var(--txt-2);font-size:14px">Your key is upgraded. 5,000 full queries unlocked.</p>
       </div>
     </div>`;
   document.body.appendChild(payOverlay);
-
-  function openPay() { payOverlay.classList.add("open"); document.body.style.overflow = "hidden"; }
-  function closePay() {
+  const openPay = () => { payOverlay.classList.add("open"); document.body.style.overflow = "hidden"; };
+  const closePay = () => {
     payOverlay.classList.remove("open");
-    payOverlay.querySelector(".pay-modal").classList.remove("processing", "done");
+    payOverlay.querySelector(".pay-modal").classList.remove("done");
     document.body.style.overflow = "";
-  }
-  $$('[data-pay], a[href="pricing.html"].btn-primary').forEach(b => {
-    b.addEventListener("click", e => { e.preventDefault(); openPay(); });
-  });
+  };
+  $$('[data-pay], .price-featured .btn-primary').forEach(b =>
+    b.addEventListener("click", e => { e.preventDefault(); openPay(); }));
   payOverlay.querySelector(".pay-x").addEventListener("click", closePay);
-  payOverlay.addEventListener("click", e => {
-    if (e.target === payOverlay) closePay();
-  });
+  payOverlay.addEventListener("click", e => { if (e.target === payOverlay) closePay(); });
   $$(".pay-tabs button", payOverlay).forEach(t => t.addEventListener("click", () => {
     $$(".pay-tabs button", payOverlay).forEach(x => x.classList.remove("active"));
     t.classList.add("active");
     $$(".pay-pane", payOverlay).forEach(p => p.classList.toggle("on", p.dataset.pane === t.dataset.pane));
   }));
   payOverlay.querySelector(".pay-now").addEventListener("click", function () {
-    const modal = payOverlay.querySelector(".pay-modal");
-    modal.classList.add("processing");
-    this.textContent = "Processing\u2026";
+    this.textContent = "Processing…";
     setTimeout(() => {
-      modal.classList.remove("processing");
-      modal.classList.add("done");
-    }, 1600);
+      payOverlay.querySelector(".pay-modal").classList.add("done");
+      this.textContent = "Pay ₹299";
+    }, 1400);
   });
 
   /* footer year */
