@@ -178,18 +178,45 @@
     ring.addEventListener("animationend", () => ring.remove());
   }, { passive: true });
 
-  /* ============ cursor glow trail (desktop) ============ */
+  /* ============ custom cursor system (desktop, AT-style) ============
+     dot = instant · ring = lerps & morphs to VIEW label · glow = slow
+     attached to <html> so transforms can never break viewport fixing */
   if (!isTouch && !reduced) {
-    const cg = document.createElement("div");
-    cg.className = "cursor-glow";
-    document.body.appendChild(cg);
+    const lp = (a, b, t) => a + (b - a) * t;
+    const mk = (cls, html) => {
+      const el = document.createElement("div");
+      el.className = cls;
+      if (html) el.innerHTML = html;
+      document.documentElement.appendChild(el);
+      return el;
+    };
+    const glow = mk("cursor-glow");
+    const ring = mk("cursor-ring", "<span></span>");
+    const dot  = mk("cursor-dot");
     document.body.classList.add("has-cursor");
-    let gx = innerWidth / 2, gy = innerHeight / 2, px = gx, py = gy;
-    addEventListener("pointermove", e => { gx = e.clientX; gy = e.clientY; }, { passive: true });
-    (function follow() {
-      px += (gx - px) * .12; py += (gy - py) * .12;
-      cg.style.left = px + "px"; cg.style.top = py + "px";
-      requestAnimationFrame(follow);
+
+    let gx = innerWidth / 2, gy = innerHeight / 2;
+    let rx = gx, ry = gy, wx = gx, wy = gy;
+
+    addEventListener("pointermove", e => {
+      gx = e.clientX; gy = e.clientY;
+      const t = e.target;
+      const view = t.closest && t.closest('[data-cursor]');
+      const link = t.closest && t.closest("a, button, .seg button, [data-tilt], input, .price");
+      document.body.classList.toggle("cur-view", !!view);
+      document.body.classList.toggle("cur-link", !!link && !view);
+      if (view) ring.firstElementChild.textContent = view.dataset.cursor || "VIEW";
+    }, { passive: true });
+    addEventListener("pointerdown", () => document.body.classList.add("cur-down"));
+    addEventListener("pointerup", () => document.body.classList.remove("cur-down"));
+
+    (function loop() {
+      rx = lp(rx, gx, .2);  ry = lp(ry, gy, .2);
+      wx = lp(wx, gx, .09); wy = lp(wy, gy, .09);
+      dot.style.transform  = `translate3d(${gx.toFixed(1)}px, ${gy.toFixed(1)}px, 0)`;
+      ring.style.transform = `translate3d(${rx.toFixed(1)}px, ${ry.toFixed(1)}px, 0)`;
+      glow.style.transform = `translate3d(${wx.toFixed(1)}px, ${wy.toFixed(1)}px, 0)`;
+      requestAnimationFrame(loop);
     })();
   }
 
@@ -224,8 +251,8 @@
   addEventListener("pageshow", () => document.body.classList.remove("page-out"));
   document.body.classList.add("page-in");
 
-  /* ================= hero char stagger ================= */
-  if (!reduced) {
+  /* ================= hero char stagger (desktop only) ================= */
+  if (!reduced && !isTouch) {
     $$(".hero-title .line:not(.grad)").forEach(line => {
       if (line.dataset.split) return;
       line.dataset.split = "1";
@@ -241,24 +268,34 @@
     });
   }
 
-  /* ================= scroll reveals ================= */
-  const io = new IntersectionObserver(entries => {
-    entries.forEach(en => {
-      if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); }
+  /* ================= scroll reveals =================
+     touch: instant show — no reveal animation on mobile */
+  const revealEls = $$('.reveal');
+  if (isTouch || reduced) {
+    revealEls.forEach(el => el.classList.add("in"));
+  } else {
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(en => {
+        if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); }
+      });
+    }, { threshold: .12, rootMargin: "0px 0px -40px 0px" });
+    revealEls.forEach((el, i) => {
+      el.style.transitionDelay = `${(i % 6) * 70}ms`;
+      io.observe(el);
     });
-  }, { threshold: .12, rootMargin: "0px 0px -40px 0px" });
-  $$(".reveal").forEach((el, i) => {
-    el.style.transitionDelay = `${(i % 6) * 70}ms`;
-    io.observe(el);
-  });
+  }
 
-  /* SVG icon draw-in */
-  const iconIO = new IntersectionObserver(entries => {
-    entries.forEach(en => {
-      if (en.isIntersecting) { en.target.classList.add("in"); iconIO.unobserve(en.target); }
-    });
-  }, { threshold: .3 });
-  $$(".icon-draw").forEach(el => iconIO.observe(el));
+  /* SVG icon draw-in (desktop only — mobile shows them fully drawn) */
+  if (isTouch || reduced) {
+    $$(".icon-draw").forEach(el => el.classList.add("in"));
+  } else {
+    const iconIO = new IntersectionObserver(entries => {
+      entries.forEach(en => {
+        if (en.isIntersecting) { en.target.classList.add("in"); iconIO.unobserve(en.target); }
+      });
+    }, { threshold: .3 });
+    $$(".icon-draw").forEach(el => iconIO.observe(el));
+  }
 
   /* ================= unified scroll engine =================
      lerped smooth parallax · velocity lean · depth motes ·
@@ -270,7 +307,7 @@
   motesBox.className = "motes";
   document.body.appendChild(motesBox);
   const motes = [];
-  if (!reduced) {
+  if (!reduced && !isTouch) {
     for (let i = 0; i < 18; i++) {
       const m = document.createElement("span");
       m.className = "mote";
@@ -344,31 +381,8 @@
 
   /* ============ mobile-only motion language ============
      no parallax swim — instead: snap-pop cards, spring reveals */
-  if (isTouch && !reduced) {
-    const mio = new IntersectionObserver(entries => {
-      entries.forEach(en => en.target.classList.toggle("m-in", en.isIntersecting));
-    }, { threshold: .25, rootMargin: "0px 0px -8% 0px" });
-    $$(".deck-card, .svc, .price, .step, .comp").forEach(el => mio.observe(el));
-
-    /* lightweight REAL parallax on touch — only conflict-free parents,
-       rAF-throttled, no lerp swim */
-    const mps = [
-      { el: $(".hero-title"), sp: .10 },
-      { el: $(".marquee-track"), sp: -.06 },
-      { el: $(".footer-grid"), sp: .04 },
-    ].filter(x => x.el);
-    let mtick = false;
-    addEventListener("scroll", () => {
-      if (mtick) return;
-      mtick = true;
-      requestAnimationFrame(() => {
-        const y = scrollY;
-        for (const p of mps)
-          p.el.style.transform = `translate3d(0, ${(y * p.sp).toFixed(1)}px, 0)`;
-        mtick = false;
-      });
-    }, { passive: true });
-  }
+  /* ============ mobile: nothing — static, minimal, professional ============ */
+  /* (all decorative motion disabled on touch by design) */
 
   /* ================= sticky deck stack (desktop) ================= */
   const deck = $(".deck");
@@ -515,7 +529,7 @@
 }` },
     ];
 
-    if (reduced) {
+    if (reduced || isTouch) {
       termBody.textContent = "$ curl api.veyrax.in/api/v1/rc/MH02BE0001\n\n{ status: ok, masked: true }";
     } else {
       let si = 0;
