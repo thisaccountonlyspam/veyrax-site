@@ -242,12 +242,12 @@
       <h2>Pick a service.<br />Dive in.</h2>
     </div>
     <div class="work-grid">
-      <a class="work-card reveal" href="services/rc.html"><span class="work-bg"></span><span class="work-title">Vehicle RC <small>01 · RC</small></span></a>
-      <a class="work-card reveal" href="services/dl.html"><span class="work-bg"></span><span class="work-title">Driving Licence <small>02 · DL</small></span></a>
-      <a class="work-card reveal" href="services/challan.html"><span class="work-bg"></span><span class="work-title">eChallan <small>03 · CHALLAN</small></span></a>
-      <a class="work-card reveal" href="services/aadhaar.html"><span class="work-bg"></span><span class="work-title">Aadhaar Linkage <small>04 · UIN</small></span></a>
-      <a class="work-card reveal" href="services/hpt.html"><span class="work-bg"></span><span class="work-title">Hypothecation <small>05 · HPT</small></span></a>
-      <a class="work-card reveal" href="services/permit.html"><span class="work-bg"></span><span class="work-title">Permit &amp; Tax <small>06 · PERMIT</small></span></a>
+      <a class="work-card reveal" data-num="01" href="services/rc.html"><span class="work-bg"></span><span class="work-go"><svg viewBox="0 0 24 24"><path d="M7 17 L17 7 M9 7 h8 v8"/></svg></span><span class="work-title">Vehicle RC <small>01 · RC</small></span></a>
+      <a class="work-card reveal" data-num="02" href="services/dl.html"><span class="work-bg"></span><span class="work-go"><svg viewBox="0 0 24 24"><path d="M7 17 L17 7 M9 7 h8 v8"/></svg></span><span class="work-title">Driving Licence <small>02 · DL</small></span></a>
+      <a class="work-card reveal" data-num="03" href="services/challan.html"><span class="work-bg"></span><span class="work-go"><svg viewBox="0 0 24 24"><path d="M7 17 L17 7 M9 7 h8 v8"/></svg></span><span class="work-title">eChallan <small>03 · CHALLAN</small></span></a>
+      <a class="work-card reveal" data-num="04" href="services/aadhaar.html"><span class="work-bg"></span><span class="work-go"><svg viewBox="0 0 24 24"><path d="M7 17 L17 7 M9 7 h8 v8"/></svg></span><span class="work-title">Aadhaar Linkage <small>04 · UIN</small></span></a>
+      <a class="work-card reveal" data-num="05" href="services/hpt.html"><span class="work-bg"></span><span class="work-go"><svg viewBox="0 0 24 24"><path d="M7 17 L17 7 M9 7 h8 v8"/></svg></span><span class="work-title">Hypothecation <small>05 · HPT</small></span></a>
+      <a class="work-card reveal" data-num="06" href="services/permit.html"><span class="work-bg"></span><span class="work-go"><svg viewBox="0 0 24 24"><path d="M7 17 L17 7 M9 7 h8 v8"/></svg></span><span class="work-title">Permit &amp; Tax <small>06 · PERMIT</small></span></a>
     </div>
   </div>
 </section>
@@ -339,7 +339,35 @@
       <span class="kicker">/ 04 — Pricing</span>
       <h2>Start free.<br />Upgrade when it clicks.</h2>
     </div>
-    <div class="price-grid">
+    
+    <div class="cyl-wrap">
+      <div class="cyl-stage" id="cyl-stage">
+        <div class="cyl">
+<div class="price reveal">
+        <h3>Trial</h3>
+        <div class="amount">₹0<span>/forever</span></div>
+        <ul><li>10 masked queries / day</li><li>All 6 services</li><li>Community support</li></ul>
+        <a class="btn-ghost btn-block" href="signup.html">Start free</a>
+      </div>
+      <div class="price price-featured reveal">
+        <span class="price-tag">MOST POPULAR</span>
+        <h3>Pro</h3>
+        <div class="amount">₹299<span>/month</span></div>
+        <ul><li><b>5,000</b> full queries / month</li><li>Unmasked responses</li><li>Priority latency + cache</li><li>Usage analytics &amp; logs</li></ul>
+        <a class="btn-primary btn-block" href="pricing.html">Get Pro — UPI / cards</a>
+      </div>
+      <div class="price reveal">
+        <h3>Enterprise</h3>
+        <div class="amount custom">Let's talk</div>
+        <ul><li>Unlimited scale</li><li>SLA &amp; dedicated infra</li><li>Custom endpoints</li></ul>
+        <a class="btn-ghost btn-block" href="contact.html">Contact us</a>
+      </div>
+    </div>
+        </div>
+      </div>
+      <p class="cyl-hint">drag to spin &nbsp;·&nbsp; <b>&#8592; &#8594;</b> keys</p>
+    </div>
+<div class="price-grid cyl-fallback">
       <div class="price reveal">
         <h3>Trial</h3>
         <div class="amount">₹0<span>/forever</span></div>
